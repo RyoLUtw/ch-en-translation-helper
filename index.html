@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>中文句子分析工具 POC</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #d1d5db;
+      --accent: #2563eb;
+      --subject: #dbeafe;
+      --verb: #fee2e2;
+      --object: #dcfce7;
+      --modifier: #fef3c7;
+      --selection: #c7d2fe;
+      --tab: #eef2ff;
+      --shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 12px 0;
+    }
+
+    .muted {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 110px;
+      resize: vertical;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-size: 18px;
+      line-height: 1.7;
+      font-family: inherit;
+    }
+
+    .top-controls,
+    .tab-row,
+    .step-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 15px;
+      font-family: inherit;
+      transition: 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: #9ca3af;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .tab-btn {
+      background: var(--tab);
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .workspace {
+      display: block;
+    }
+
+    .step-panel {
+      display: grid;
+      gap: 14px;
+    }
+
+    .step-meta,
+    .status {
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #fafbff;
+      line-height: 1.7;
+    }
+
+    .role-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .role-box {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      background: white;
+    }
+
+    .role-box-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .role-title {
+      font-weight: 700;
+    }
+
+    .role-chip {
+      display: inline-block;
+      font-size: 13px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+    }
+
+    .chip-modifier { background: var(--modifier); }
+    .chip-subject { background: var(--subject); }
+    .chip-verb { background: var(--verb); }
+    .chip-object { background: var(--object); }
+
+    .token-field {
+      min-height: 92px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fcfcff;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-content: flex-start;
+    }
+
+    .role-token {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: white;
+      cursor: pointer;
+      user-select: none;
+      font-size: 20px;
+      line-height: 1.2;
+      transition: 0.15s ease;
+    }
+
+    .role-token:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .role-token.selected {
+      background: var(--selection);
+      border-color: #6366f1;
+    }
+
+    .small-btn {
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    .placeholder {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="card">
+      <h1>中文句子分析工具 POC</h1>
+      <p class="muted">
+        先輸入一句中文，按下「切成字詞」。每個角色區塊一開始都會顯示全部字詞，但預設都不選取。直接點擊字詞可選取或取消選取，再按「確認」移除未選取的字詞，留下該角色的內容。
+      </p>
+      <textarea id="sentenceInput">小明昨天在公園裡開心地踢足球。</textarea>
+      <div class="top-controls">
+        <button id="tokenizeBtn" class="primary">切成字詞</button>
+        <button id="resetAllBtn">清除全部內容</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div id="tabRow" class="tab-row"></div>
+    </section>
+
+    <section class="workspace">
+      <div class="card">
+        <div id="stepPanel" class="step-panel"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const sentenceInput = document.getElementById('sentenceInput');
+    const tokenizeBtn = document.getElementById('tokenizeBtn');
+    const resetAllBtn = document.getElementById('resetAllBtn');
+    const tabRow = document.getElementById('tabRow');
+    const stepPanel = document.getElementById('stepPanel');
+
+    const steps = [
+      {
+        id: 'subject',
+        label: '1. Subject',
+        title: '主詞分析',
+        description: '先找主詞相關成分。主詞修飾詞與主詞都先顯示全部字詞，且預設不選取，請在各區直接點選要保留的字詞。',
+        roles: [
+          { id: 'modSub', label: '主詞修飾詞', chipClass: 'chip-modifier' },
+          { id: 'subjectCore', label: '主詞', chipClass: 'chip-subject' }
+        ]
+      },
+      {
+        id: 'verb',
+        label: '2. Verb',
+        title: '動詞分析',
+        description: '再找動詞相關成分。動詞修飾詞與動詞都先顯示全部字詞，且預設不選取，請在各區直接點選要保留的字詞。',
+        roles: [
+          { id: 'modVerb', label: '動詞修飾詞', chipClass: 'chip-modifier' },
+          { id: 'verbCore', label: '動詞', chipClass: 'chip-verb' }
+        ]
+      },
+      {
+        id: 'object',
+        label: '3. Object',
+        title: '受詞分析',
+        description: '接著找受詞相關成分。受詞修飾詞與受詞都先顯示全部字詞，且預設不選取，請在各區直接點選要保留的字詞。',
+        roles: [
+          { id: 'modObj', label: '受詞修飾詞', chipClass: 'chip-modifier' },
+          { id: 'objectCore', label: '受詞', chipClass: 'chip-object' }
+        ]
+      },
+      {
+        id: 'clauseModifier',
+        label: '4. Clause Modifier',
+        title: '子句修飾詞分析',
+        description: '最後處理修飾整個子句的內容。子句修飾詞先顯示全部字詞，且預設不選取，請直接點選要保留的字詞。',
+        roles: [
+          { id: 'modClause', label: '子句修飾詞', chipClass: 'chip-modifier' }
+        ]
+      }
+    ];
+
+    let tokens = [];
+    let activeStepIndex = 0;
+    let assignments = createEmptyAssignments();
+
+    function createEmptyAssignments() {
+      const store = {};
+      steps.forEach(step => {
+        step.roles.forEach(role => {
+          store[role.id] = {
+            selected: [],
+            confirmed: false
+          };
+        });
+      });
+      return store;
+    }
+
+    function tokenizeChinese(text) {
+      return text
+        .trim()
+        .split(/(\s+|[，。！？；：、「」『』（）()])/)
+        .filter(part => part && !/^\s+$/.test(part))
+        .flatMap(part => {
+          if (/^[，。！？；：、「」『』（）()]$/.test(part)) return [part];
+          if (/\s/.test(part)) return [];
+          return [...part];
+        })
+        .map((text, index) => ({ id: index, text }));
+    }
+
+    function createDefaultSelection() {
+      return [];
+    }
+
+    function initializeSelections() {
+      steps.forEach(step => {
+        step.roles.forEach(role => {
+          assignments[role.id] = {
+            selected: createDefaultSelection(),
+            confirmed: false
+          };
+        });
+      });
+    }
+
+    function renderTabs() {
+      tabRow.innerHTML = steps.map((step, index) => `
+        <button class="tab-btn ${index === activeStepIndex ? 'active' : ''}" data-step-index="${index}">${step.label}</button>
+      `).join('');
+
+      tabRow.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeStepIndex = Number(btn.dataset.stepIndex);
+          renderTabs();
+          renderStepPanel();
+        });
+      });
+    }
+
+    function getStatusMarkup() {
+      if (!tokens.length) {
+        return '尚未切詞。';
+      }
+
+      const step = steps[activeStepIndex];
+      return `目前步驟：<strong>${step.title}</strong>。請在各角色區塊中點選要保留的字詞；目前預設不選取任何字詞，再按確認。`;
+    }
+
+    function renderRoleTokens(roleId) {
+      if (!tokens.length) {
+        return '<div class="placeholder">請先輸入句子並切成字詞。</div>';
+      }
+
+      const selectedSet = new Set(assignments[roleId].selected);
+      const confirmed = assignments[roleId].confirmed;
+      const visibleTokens = confirmed
+        ? tokens.filter(token => selectedSet.has(token.id))
+        : tokens;
+
+      if (!visibleTokens.length) {
+        return '<div class="placeholder">目前沒有保留任何字詞。</div>';
+      }
+
+      return visibleTokens.map(token => `
+        <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''}" data-role-id="${roleId}" data-token-id="${token.id}">${token.text}</button>
+      `).join('');
+    }
+
+    function renderStepPanel() {
+      const step = steps[activeStepIndex];
+      stepPanel.innerHTML = `
+        <div>
+          <h2>${step.title}</h2>
+          <div class="step-meta">${step.description}</div>
+        </div>
+        <div class="status">${getStatusMarkup()}</div>
+        <div class="role-grid">
+          ${step.roles.map(role => {
+            const state = assignments[role.id];
+            return `
+              <div class="role-box" data-role-id="${role.id}">
+                <div class="role-box-header">
+                  <div>
+                    <div class="role-title">${role.label}</div>
+                    <div class="role-chip ${role.chipClass}">${role.label}</div>
+                  </div>
+                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="small-btn" data-reset-role="${role.id}">重設此區</button>
+                    <button class="small-btn primary" data-confirm-role="${role.id}">確認</button>
+                  </div>
+                </div>
+                <div class="token-field">${renderRoleTokens(role.id)}</div>
+                <div class="muted" style="margin-top: 8px;">
+                  ${state.confirmed ? '已確認，只顯示保留字詞。' : '尚未確認，目前顯示全部字詞，且預設不選取。'}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        <div class="step-actions">
+          <button id="prevStepBtn">上一個步驟</button>
+          <button id="nextStepBtn" class="primary">下一個步驟</button>
+        </div>
+      `;
+
+      stepPanel.querySelectorAll('[data-token-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const roleId = btn.dataset.roleId;
+          const tokenId = Number(btn.dataset.tokenId);
+          toggleRoleToken(roleId, tokenId);
+        });
+      });
+
+      stepPanel.querySelectorAll('[data-confirm-role]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          confirmRole(btn.dataset.confirmRole);
+        });
+      });
+
+      stepPanel.querySelectorAll('[data-reset-role]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          resetRole(btn.dataset.resetRole);
+        });
+      });
+
+      document.getElementById('prevStepBtn').addEventListener('click', () => {
+        activeStepIndex = Math.max(0, activeStepIndex - 1);
+        renderTabs();
+        renderStepPanel();
+      });
+
+      document.getElementById('nextStepBtn').addEventListener('click', () => {
+        activeStepIndex = Math.min(steps.length - 1, activeStepIndex + 1);
+        renderTabs();
+        renderStepPanel();
+      });
+    }
+
+    function toggleRoleToken(roleId, tokenId) {
+      const state = assignments[roleId];
+      const set = new Set(state.selected);
+
+      if (set.has(tokenId)) {
+        set.delete(tokenId);
+      } else {
+        set.add(tokenId);
+      }
+
+      assignments[roleId].selected = tokens
+        .map(token => token.id)
+        .filter(id => set.has(id));
+
+      renderStepPanel();
+    }
+
+    function confirmRole(roleId) {
+      assignments[roleId].confirmed = true;
+      renderStepPanel();
+    }
+
+    function resetRole(roleId) {
+      assignments[roleId] = {
+        selected: createDefaultSelection(),
+        confirmed: false
+      };
+      renderStepPanel();
+    }
+
+    function resetAll() {
+      assignments = createEmptyAssignments();
+      initializeSelections();
+      activeStepIndex = 0;
+      renderTabs();
+      renderStepPanel();
+    }
+
+    tokenizeBtn.addEventListener('click', () => {
+      tokens = tokenizeChinese(sentenceInput.value);
+      assignments = createEmptyAssignments();
+      initializeSelections();
+      activeStepIndex = 0;
+      renderTabs();
+      renderStepPanel();
+    });
+
+    resetAllBtn.addEventListener('click', resetAll);
+
+    tokens = tokenizeChinese(sentenceInput.value);
+    initializeSelections();
+    renderTabs();
+    renderStepPanel();
+  </script>
+</body>
+</html>
