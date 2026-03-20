@@ -119,6 +119,15 @@
       border-color: var(--accent-strong);
     }
 
+    button:disabled {
+      cursor: not-allowed;
+      background: #e5e7eb;
+      color: #9ca3af;
+      border-color: #d1d5db;
+      box-shadow: none;
+      transform: none;
+    }
+
     button.active-toggle {
       background: #eff6ff;
       border-color: #93c5fd;
@@ -149,6 +158,8 @@
       background: #fff7ed;
       border-color: #fdba74;
     }
+
+    .hidden { display: none !important; }
 
     .slider-box {
       display: grid;
@@ -382,6 +393,10 @@
       margin: 0;
     }
 
+    .floating-editor[data-expanded="false"] .floating-editor-actions {
+      display: none;
+    }
+
     .floating-editor-header {
       display: flex;
       justify-content: space-between;
@@ -401,6 +416,40 @@
     .floating-editor textarea {
       transition: height 0.22s ease, opacity 0.22s ease, padding 0.22s ease, border-width 0.22s ease;
       margin-bottom: 0;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 100;
+    }
+
+    .modal {
+      width: min(760px, 100%);
+      background: #fff;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .review-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .review-item {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: var(--panel-soft);
     }
 
     @media (max-width: 900px) {
@@ -438,13 +487,19 @@
     </section>
 
     <section class="card structure-panel">
-      <div>
+      <div class="clause-box-header">
+        <div>
         <h2>1. 辨認句子結構</h2>
         <div class="step-meta">
           先判斷這個句子有幾個子句（mental images），再逐一在每個子句容器中圈選屬於該子句的字詞。按下「確認」後，會套用和詞性分析相同的邏輯：移除未選取字詞，只保留該子句內容。
         </div>
+        </div>
+        <div class="inline-actions">
+          <button id="toggleStructureBtn" class="small-btn hidden">展開步驟 1</button>
+        </div>
       </div>
 
+      <div id="structureBody">
       <div class="slider-box">
         <div class="slider-header">
           <div>
@@ -458,6 +513,7 @@
 
       <div id="structureStatus" class="status"></div>
       <div id="clauseGrid" class="clause-grid"></div>
+      </div>
     </section>
 
     <section class="card tab-card">
@@ -491,6 +547,20 @@
     </div>
   </section>
 
+  <div id="reviewModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div>
+        <h3>確認子句辨認結果</h3>
+        <p class="muted">以下是目前各子句的整理結果。確認後會先收合步驟 1，你仍可之後再次展開修改。</p>
+      </div>
+      <div id="reviewList" class="review-list"></div>
+      <div class="inline-actions">
+        <button id="reviewBackBtn">返回修改</button>
+        <button id="reviewConfirmBtn" class="primary">確認並收合步驟 1</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const sentenceInput = document.getElementById('sentenceInput');
     const tokenizeBtn = document.getElementById('tokenizeBtn');
@@ -501,11 +571,17 @@
     const clauseCountValue = document.getElementById('clauseCountValue');
     const clauseGrid = document.getElementById('clauseGrid');
     const structureStatus = document.getElementById('structureStatus');
+    const structureBody = document.getElementById('structureBody');
     const tabScroll = document.getElementById('tabScroll');
     const floatingEditor = document.getElementById('floatingEditor');
     const toggleEditorBtn = document.getElementById('toggleEditorBtn');
+    const toggleStructureBtn = document.getElementById('toggleStructureBtn');
     const translationInput = document.getElementById('translationInput');
     const clearTranslationBtn = document.getElementById('clearTranslationBtn');
+    const reviewModal = document.getElementById('reviewModal');
+    const reviewList = document.getElementById('reviewList');
+    const reviewBackBtn = document.getElementById('reviewBackBtn');
+    const reviewConfirmBtn = document.getElementById('reviewConfirmBtn');
 
     const defaultSentence = '小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。';
 
@@ -546,7 +622,9 @@
         title: '子句修飾詞分析',
         description: '請找出修飾整個子句的內容。',
         roles: [
-          { id: 'modClause', label: '子句修飾詞', chipClass: 'chip-modifier' }
+          { id: 'modManner', label: '方式修飾詞', chipClass: 'chip-modifier' },
+          { id: 'modPlace', label: '地方修飾詞', chipClass: 'chip-modifier' },
+          { id: 'modTime', label: '時間修飾詞', chipClass: 'chip-modifier' }
         ]
       }
     ];
@@ -559,6 +637,8 @@
     let assignments = [];
     let scrollTimer = null;
     let pendingClauseCount = clauseCount;
+    let structureCollapsed = false;
+    let reviewModalShown = false;
     const quickSelectionState = {
       clause: {},
       role: {}
@@ -582,7 +662,7 @@
         clauseIndex: index,
         selected: [],
         confirmed: false,
-        quickSelectionEnabled: false
+        quickSelectionEnabled: true
       };
     }
 
@@ -642,6 +722,47 @@
 
     function getRoleState(clauseIndex, roleId) {
       return assignments[clauseIndex]?.[roleId];
+    }
+
+    function allClausesConfirmed() {
+      return clauseSelections.length > 0 && clauseSelections.every(state => state.confirmed);
+    }
+
+    function areCurrentStepRolesConfirmed() {
+      const step = roleSteps[activeRoleIndex];
+      return step.roles.every(role => getRoleState(activeClauseIndex, role.id)?.confirmed);
+    }
+
+    function isCurrentClauseFullyConfirmed() {
+      return roleSteps.every(step => step.roles.every(role => getRoleState(activeClauseIndex, role.id)?.confirmed));
+    }
+
+    function getClauseReviewText(clauseIndex) {
+      return getClauseTokens(clauseIndex).map(token => token.text).join('');
+    }
+
+    function renderReviewModal() {
+      reviewList.innerHTML = clauseSelections.map((_, index) => `
+        <div class="review-item">
+          <strong>Clause ${index + 1}</strong>
+          <div style="margin-top: 6px;">${getClauseReviewText(index) || '（尚未選取內容）'}</div>
+        </div>
+      `).join('');
+    }
+
+    function showReviewModal() {
+      renderReviewModal();
+      reviewModal.classList.remove('hidden');
+    }
+
+    function hideReviewModal() {
+      reviewModal.classList.add('hidden');
+    }
+
+    function updateStructureVisibility() {
+      structureBody.classList.toggle('hidden', structureCollapsed);
+      toggleStructureBtn.classList.toggle('hidden', !structureCollapsed);
+      toggleStructureBtn.textContent = structureCollapsed ? '展開步驟 1' : '收合步驟 1';
     }
 
     function updateSentencePreview() {
@@ -805,15 +926,6 @@
       }
     }
 
-    function getStatusMarkup() {
-      if (!tokens.length) return '尚未切詞。';
-
-      const step = roleSteps[activeRoleIndex];
-      const clauseTokens = getClauseTokens(activeClauseIndex);
-      const clauseIsConfirmed = clauseSelections[activeClauseIndex]?.confirmed;
-      return `目前步驟：<strong>Clause ${activeClauseIndex + 1} / ${step.title}</strong>。目前顯示 <strong>${clauseTokens.length}</strong> 個屬於此子句的字詞；${clauseIsConfirmed ? '此子句已確認。' : '此子句尚未確認，若未選取任何字詞，暫時會顯示整句字詞。'}`;
-    }
-
     function renderRoleTokens(roleId) {
       const clauseTokens = getClauseTokens(activeClauseIndex);
       if (!clauseTokens.length) return '<div class="placeholder">此子句目前沒有可分析的字詞。</div>';
@@ -833,13 +945,16 @@
     function renderStepPanel() {
       const step = roleSteps[activeRoleIndex];
       const clauseTokens = getClauseTokens(activeClauseIndex);
+      const currentStepConfirmed = areCurrentStepRolesConfirmed();
+      const onLastRole = activeRoleIndex === roleSteps.length - 1;
+      const canGoNextRole = currentStepConfirmed && !onLastRole;
+      const canGoNextClause = currentStepConfirmed && onLastRole && activeClauseIndex < clauseCount - 1;
 
       stepPanel.innerHTML = `
         <div>
           <h2>Clause ${activeClauseIndex + 1}｜${step.title}</h2>
           <div class="step-meta">${step.description}</div>
         </div>
-        <div class="status">${getStatusMarkup()}</div>
         <div class="hint-box">此區顯示的字詞來源為目前捲動選中的子句：<strong>${clauseTokens.map(token => token.text).join(' ') || '（無字詞）'}</strong></div>
         <div class="role-grid">
           ${step.roles.map(role => {
@@ -868,7 +983,8 @@
         </div>
         <div class="step-actions">
           <button id="prevStepBtn">上一個角色</button>
-          <button id="nextStepBtn" class="primary">下一個角色</button>
+          <button id="nextStepBtn" class="primary" ${canGoNextRole ? '' : 'disabled'}>下一個角色</button>
+          ${canGoNextClause ? '<button id="nextClauseBtn" class="primary">下一個子句</button>' : ''}
         </div>
       `;
 
@@ -890,11 +1006,26 @@
         renderTabs();
         renderStepPanel();
       });
-      document.getElementById('nextStepBtn').addEventListener('click', () => {
-        activeRoleIndex = Math.min(roleSteps.length - 1, activeRoleIndex + 1);
-        renderTabs();
-        renderStepPanel();
-      });
+
+      const nextStepBtn = document.getElementById('nextStepBtn');
+      if (!nextStepBtn.disabled) {
+        nextStepBtn.addEventListener('click', () => {
+          activeRoleIndex = Math.min(roleSteps.length - 1, activeRoleIndex + 1);
+          renderTabs();
+          renderStepPanel();
+        });
+      }
+
+      const nextClauseBtn = document.getElementById('nextClauseBtn');
+      if (nextClauseBtn) {
+        nextClauseBtn.addEventListener('click', () => {
+          activeClauseIndex = Math.min(clauseCount - 1, activeClauseIndex + 1);
+          activeRoleIndex = 0;
+          renderTabs();
+          renderStepPanel();
+          scrollClauseTabIntoView(activeClauseIndex);
+        });
+      }
     }
 
     function selectTokenRange(existingSelection, tokenSourceIds, startId, endId) {
@@ -920,6 +1051,8 @@
         state.selected = selectTokenRange(state.selected, tokens.map(token => token.id), currentAnchor, tokenId);
         delete quickSelectionState.clause[key];
         state.confirmed = false;
+        reviewModalShown = false;
+        structureCollapsed = false;
         renderStructureStatus();
         renderClauseGrid();
         renderStepPanel();
@@ -935,6 +1068,8 @@
       else set.add(tokenId);
       state.selected = tokens.map(token => token.id).filter(id => set.has(id));
       state.confirmed = false;
+      reviewModalShown = false;
+      structureCollapsed = false;
       renderStructureStatus();
       renderClauseGrid();
       renderStepPanel();
@@ -946,6 +1081,9 @@
       renderClauseGrid();
       renderTabs();
       renderStepPanel();
+      if (allClausesConfirmed() && !reviewModalShown) {
+        showReviewModal();
+      }
     }
 
     function resetClause(clauseIndex) {
@@ -957,6 +1095,8 @@
       Object.keys(quickSelectionState.role)
         .filter(key => key.startsWith(`role-${clauseIndex}-`))
         .forEach(key => delete quickSelectionState.role[key]);
+      reviewModalShown = false;
+      structureCollapsed = false;
       renderStructureStatus();
       renderClauseGrid();
       renderTabs();
@@ -1023,6 +1163,8 @@
       normalizeStateAfterResize(nextCount);
       clauseCountSlider.value = String(nextCount);
       clauseCountValue.textContent = String(nextCount);
+      reviewModalShown = false;
+      structureCollapsed = false;
       renderAll();
     }
 
@@ -1046,6 +1188,8 @@
     function rebuildAnalysis() {
       tokens = tokenizeChinese(sentenceInput.value);
       initializeClauseData(clauseCount);
+      reviewModalShown = false;
+      structureCollapsed = false;
       renderAll();
       scrollClauseTabIntoView(activeClauseIndex);
     }
@@ -1055,6 +1199,8 @@
       tokens = tokenizeChinese(sentenceInput.value);
       clauseCount = Number(clauseCountSlider.value);
       initializeClauseData(clauseCount);
+      reviewModalShown = false;
+      structureCollapsed = false;
       renderAll();
       scrollClauseTabIntoView(activeClauseIndex);
     }
@@ -1062,6 +1208,7 @@
     function renderAll() {
       updateSentencePreview();
       clauseCountValue.textContent = String(clauseCount);
+      updateStructureVisibility();
       renderStructureStatus();
       renderClauseGrid();
       renderTabs();
@@ -1082,6 +1229,17 @@
     sentenceInput.addEventListener('input', updateSentencePreview);
     clearTranslationBtn.addEventListener('click', () => {
       translationInput.value = '';
+    });
+    toggleStructureBtn.addEventListener('click', () => {
+      structureCollapsed = !structureCollapsed;
+      updateStructureVisibility();
+    });
+    reviewBackBtn.addEventListener('click', hideReviewModal);
+    reviewConfirmBtn.addEventListener('click', () => {
+      reviewModalShown = true;
+      structureCollapsed = true;
+      hideReviewModal();
+      renderAll();
     });
 
     toggleEditorBtn.addEventListener('click', () => {
