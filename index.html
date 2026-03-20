@@ -19,15 +19,15 @@
       --object: #dcfce7;
       --modifier: #fef3c7;
       --selection: #c7d2fe;
+      --selection-anchor: #fde68a;
       --tab: #eef2ff;
       --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-      --editor-height-collapsed: 92px;
-      --editor-height-expanded: 280px;
+      --editor-height-collapsed: 112px;
+      --editor-height-expanded: 300px;
       --editor-height: var(--editor-height-expanded);
     }
 
     * { box-sizing: border-box; }
-
     html { scroll-behavior: smooth; }
 
     body {
@@ -57,9 +57,7 @@
       box-shadow: var(--shadow);
     }
 
-    h1, h2, h3, h4, p {
-      margin-top: 0;
-    }
+    h1, h2, h3, h4, p { margin-top: 0; }
 
     .muted {
       color: var(--muted);
@@ -81,13 +79,15 @@
 
     .top-controls,
     .step-actions,
-    .sentence-structure-controls,
     .floating-editor-actions,
-    .clause-actions {
+    .clause-actions,
+    .page-actions,
+    .inline-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       margin-top: 14px;
+      align-items: center;
     }
 
     button {
@@ -119,6 +119,13 @@
       border-color: var(--accent-strong);
     }
 
+    button.active-toggle {
+      background: #eff6ff;
+      border-color: #93c5fd;
+      color: var(--accent-strong);
+      box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+    }
+
     .workspace,
     .step-panel,
     .structure-panel {
@@ -129,12 +136,18 @@
     .step-meta,
     .status,
     .hint-box,
-    .slider-box {
+    .slider-box,
+    .warning-box {
       padding: 14px 16px;
       border-radius: 14px;
       border: 1px solid var(--border);
       background: var(--panel-soft);
       line-height: 1.7;
+    }
+
+    .warning-box {
+      background: #fff7ed;
+      border-color: #fdba74;
     }
 
     .slider-box {
@@ -175,7 +188,8 @@
       background: white;
     }
 
-    .clause-box.confirmed {
+    .clause-box.confirmed,
+    .role-box.confirmed {
       background: #f8fbff;
       border-color: #93c5fd;
     }
@@ -245,6 +259,11 @@
       border-color: #6366f1;
     }
 
+    .role-token.quick-anchor {
+      background: var(--selection-anchor);
+      border-color: #f59e0b;
+    }
+
     .small-btn {
       padding: 8px 10px;
       font-size: 13px;
@@ -255,13 +274,8 @@
       font-style: italic;
     }
 
-    .tab-card {
-      overflow: hidden;
-    }
-
-    .tab-scroll-wrap {
-      position: relative;
-    }
+    .tab-card { overflow: hidden; }
+    .tab-scroll-wrap { position: relative; }
 
     .tab-scroll {
       display: flex;
@@ -273,10 +287,7 @@
       scrollbar-width: thin;
     }
 
-    .tab-scroll::-webkit-scrollbar {
-      height: 10px;
-    }
-
+    .tab-scroll::-webkit-scrollbar { height: 10px; }
     .tab-scroll::-webkit-scrollbar-thumb {
       background: #cbd5e1;
       border-radius: 999px;
@@ -385,9 +396,7 @@
       font-weight: 800;
     }
 
-    .editor-toggle {
-      border-radius: 999px;
-    }
+    .editor-toggle { border-radius: 999px; }
 
     .floating-editor textarea {
       transition: height 0.22s ease, opacity 0.22s ease, padding 0.22s ease, border-width 0.22s ease;
@@ -416,8 +425,13 @@
     <section class="card">
       <h1>中文句子分析工具 POC</h1>
       <p class="muted">
-        先切出整句字詞，再用「辨認句子結構」決定句子包含幾個子句／心理意象，並在每個子句盒中點選要保留的字詞。完成後，下方會依子句數量產生可橫向捲動的分析分頁，每個子句都包含 S / V / O / CM 四個角色分析。
+        先在上方輸入要分析的中文句子並切詞，再用「辨認句子結構」分出子句／心理意象。底部浮動編輯器則保留給學生撰寫英文翻譯，不會影響句子分析內容。
       </p>
+      <textarea id="sentenceInput">小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。</textarea>
+      <div class="page-actions">
+        <button id="tokenizeBtn" class="primary">切成字詞並重建分析</button>
+        <button id="resetSentenceBtn">重設句子</button>
+      </div>
       <div class="hint-box">
         目前分析使用的句子：<strong id="sentencePreview"></strong>
       </div>
@@ -435,7 +449,7 @@
         <div class="slider-header">
           <div>
             <strong>子句數量</strong>
-            <div class="muted">拖曳滑桿選擇 1–6 個子句。</div>
+            <div class="muted">拖曳滑桿選擇 1–6 個子句。調整數量時會保留現有選取內容；若縮減到較少子句，會在需要時先詢問是否刪除尾端子句。</div>
           </div>
           <div class="slider-value" id="clauseCountValue">2</div>
         </div>
@@ -466,22 +480,21 @@
   <section id="floatingEditor" class="floating-editor" data-expanded="true">
     <div class="floating-editor-header">
       <div>
-        <div class="floating-editor-title">浮動句子編輯器</div>
-        <div class="muted">固定在視窗底部，可向上展開／收合，並即時更新分析目標句子。</div>
+        <div class="floating-editor-title">英文翻譯浮動編輯器</div>
+        <div class="muted">固定在視窗底部，可向上展開／收合，供學生撰寫英文翻譯草稿。</div>
       </div>
       <button id="toggleEditorBtn" class="editor-toggle">收合編輯器</button>
     </div>
-    <textarea id="sentenceInput">小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。</textarea>
+    <textarea id="translationInput" placeholder="Write the English translation here..."></textarea>
     <div class="floating-editor-actions">
-      <button id="tokenizeBtn" class="primary">切成字詞並重建分析</button>
-      <button id="resetAllBtn">清除全部內容</button>
+      <button id="clearTranslationBtn">清空翻譯</button>
     </div>
   </section>
 
   <script>
     const sentenceInput = document.getElementById('sentenceInput');
     const tokenizeBtn = document.getElementById('tokenizeBtn');
-    const resetAllBtn = document.getElementById('resetAllBtn');
+    const resetSentenceBtn = document.getElementById('resetSentenceBtn');
     const stepPanel = document.getElementById('stepPanel');
     const sentencePreview = document.getElementById('sentencePreview');
     const clauseCountSlider = document.getElementById('clauseCountSlider');
@@ -491,6 +504,10 @@
     const tabScroll = document.getElementById('tabScroll');
     const floatingEditor = document.getElementById('floatingEditor');
     const toggleEditorBtn = document.getElementById('toggleEditorBtn');
+    const translationInput = document.getElementById('translationInput');
+    const clearTranslationBtn = document.getElementById('clearTranslationBtn');
+
+    const defaultSentence = '小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。';
 
     const roleSteps = [
       {
@@ -541,6 +558,11 @@
     let clauseSelections = [];
     let assignments = [];
     let scrollTimer = null;
+    let pendingClauseCount = clauseCount;
+    const quickSelectionState = {
+      clause: {},
+      role: {}
+    };
 
     function tokenizeChinese(text) {
       return text
@@ -552,14 +574,15 @@
           if (/\s/.test(part)) return [];
           return [...part];
         })
-        .map((text, index) => ({ id: index, text }));
+        .map((part, index) => ({ id: index, text: part }));
     }
 
     function createDefaultClauseState(index) {
       return {
         clauseIndex: index,
         selected: [],
-        confirmed: false
+        confirmed: false,
+        quickSelectionEnabled: false
       };
     }
 
@@ -569,18 +592,39 @@
         step.roles.forEach(role => {
           store[role.id] = {
             selected: [],
-            confirmed: false
+            confirmed: false,
+            quickSelectionEnabled: false
           };
         });
       });
       return store;
     }
 
-    function initializeClauseData() {
-      clauseSelections = Array.from({ length: clauseCount }, (_, index) => createDefaultClauseState(index));
-      assignments = Array.from({ length: clauseCount }, () => createRoleState());
-      activeClauseIndex = Math.min(activeClauseIndex, clauseCount - 1);
+    function initializeClauseData(count) {
+      clauseSelections = Array.from({ length: count }, (_, index) => createDefaultClauseState(index));
+      assignments = Array.from({ length: count }, () => createRoleState());
+      activeClauseIndex = Math.min(activeClauseIndex, Math.max(0, count - 1));
       activeRoleIndex = Math.min(activeRoleIndex, roleSteps.length - 1);
+    }
+
+    function normalizeStateAfterResize(nextCount) {
+      clauseSelections = clauseSelections.slice(0, nextCount);
+      assignments = assignments.slice(0, nextCount);
+
+      while (clauseSelections.length < nextCount) {
+        clauseSelections.push(createDefaultClauseState(clauseSelections.length));
+      }
+      while (assignments.length < nextCount) {
+        assignments.push(createRoleState());
+      }
+
+      clauseSelections.forEach((state, index) => {
+        state.clauseIndex = index;
+        state.quickSelectionEnabled = Boolean(state.quickSelectionEnabled);
+      });
+
+      activeClauseIndex = Math.min(activeClauseIndex, Math.max(0, nextCount - 1));
+      clearInvalidQuickAnchors();
     }
 
     function getClauseTokenIds(clauseIndex) {
@@ -605,9 +649,46 @@
       sentencePreview.textContent = text || '（尚未輸入句子）';
     }
 
+    function getQuickAnchorKey(kind, clauseIndex, roleId = '') {
+      return kind === 'clause' ? `clause-${clauseIndex}` : `role-${clauseIndex}-${roleId}`;
+    }
+
+    function clearInvalidQuickAnchors() {
+      Object.keys(quickSelectionState.clause).forEach(key => {
+        const match = key.match(/^clause-(\d+)$/);
+        if (match && Number(match[1]) >= clauseCount) delete quickSelectionState.clause[key];
+      });
+
+      Object.keys(quickSelectionState.role).forEach(key => {
+        const match = key.match(/^role-(\d+)-(.+)$/);
+        if (match && Number(match[1]) >= clauseCount) delete quickSelectionState.role[key];
+      });
+    }
+
+    function toggleQuickSelection(kind, clauseIndex, roleId = '') {
+      if (kind === 'clause') {
+        const clauseState = clauseSelections[clauseIndex];
+        clauseState.quickSelectionEnabled = !clauseState.quickSelectionEnabled;
+        if (!clauseState.quickSelectionEnabled) delete quickSelectionState.clause[getQuickAnchorKey(kind, clauseIndex)];
+        renderClauseGrid();
+        return;
+      }
+
+      const roleState = getRoleState(clauseIndex, roleId);
+      roleState.quickSelectionEnabled = !roleState.quickSelectionEnabled;
+      if (!roleState.quickSelectionEnabled) delete quickSelectionState.role[getQuickAnchorKey(kind, clauseIndex, roleId)];
+      renderStepPanel();
+    }
+
+    function getClauseWarningMarkup() {
+      const trimmedCount = Math.max(0, clauseSelections.length - clauseCount);
+      if (!trimmedCount) return '';
+      return `<div class="warning-box">提醒：若把子句數量調小，系統只會保留前 ${clauseCount} 個子句；後面的子句資料會被移除。</div>`;
+    }
+
     function renderStructureStatus() {
       if (!tokens.length) {
-        structureStatus.innerHTML = '尚未切詞，請先在底部浮動編輯器輸入句子，並按下「切成字詞並重建分析」。';
+        structureStatus.innerHTML = '尚未切詞，請先在頁面上方輸入中文句子，並按下「切成字詞並重建分析」。';
         return;
       }
 
@@ -616,25 +697,22 @@
     }
 
     function renderClauseTokens(clauseIndex) {
-      if (!tokens.length) {
-        return '<div class="placeholder">請先切成字詞。</div>';
-      }
+      if (!tokens.length) return '<div class="placeholder">請先切成字詞。</div>';
 
       const state = clauseSelections[clauseIndex];
       const selectedSet = new Set(state.selected);
       const visibleTokens = state.confirmed ? tokens.filter(token => selectedSet.has(token.id)) : tokens;
+      const anchorId = quickSelectionState.clause[getQuickAnchorKey('clause', clauseIndex)];
 
-      if (!visibleTokens.length) {
-        return '<div class="placeholder">目前沒有保留任何字詞。</div>';
-      }
+      if (!visibleTokens.length) return '<div class="placeholder">目前沒有保留任何字詞。</div>';
 
       return visibleTokens.map(token => `
-        <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''}" data-clause-token="${token.id}" data-clause-index="${clauseIndex}">${token.text}</button>
+        <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''} ${anchorId === token.id ? 'quick-anchor' : ''}" data-clause-token="${token.id}" data-clause-index="${clauseIndex}">${token.text}</button>
       `).join('');
     }
 
     function renderClauseGrid() {
-      clauseGrid.innerHTML = clauseSelections.map((state, index) => `
+      clauseGrid.innerHTML = `${getClauseWarningMarkup()}${clauseSelections.map((state, index) => `
         <div class="clause-box ${state.confirmed ? 'confirmed' : ''}">
           <div class="clause-box-header">
             <div>
@@ -642,33 +720,30 @@
               <div class="clause-chip">辨認句子結構</div>
             </div>
             <div class="clause-actions">
+              <button class="small-btn ${state.quickSelectionEnabled ? 'active-toggle' : ''}" data-quick-clause="${index}">${state.quickSelectionEnabled ? '快速選取：開' : '快速選取：關'}</button>
               <button class="small-btn" data-reset-clause="${index}">重設子句</button>
               <button class="small-btn primary" data-confirm-clause="${index}">確認子句</button>
             </div>
           </div>
           <div class="token-field">${renderClauseTokens(index)}</div>
           <div class="muted" style="margin-top: 8px;">
+            ${state.quickSelectionEnabled ? '快速選取模式已開啟：先點起點，再點終點，可一次選取中間所有字詞。' : ''}
             ${state.confirmed ? '已確認，只顯示保留字詞。' : '尚未確認，目前顯示整句所有字詞，可點選屬於此子句的內容。'}
           </div>
         </div>
-      `).join('');
+      `).join('')}`;
 
       clauseGrid.querySelectorAll('[data-clause-token]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          toggleClauseToken(Number(btn.dataset.clauseIndex), Number(btn.dataset.clauseToken));
-        });
+        btn.addEventListener('click', () => handleClauseTokenClick(Number(btn.dataset.clauseIndex), Number(btn.dataset.clauseToken)));
       });
-
       clauseGrid.querySelectorAll('[data-confirm-clause]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          confirmClause(Number(btn.dataset.confirmClause));
-        });
+        btn.addEventListener('click', () => confirmClause(Number(btn.dataset.confirmClause)));
       });
-
       clauseGrid.querySelectorAll('[data-reset-clause]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          resetClause(Number(btn.dataset.resetClause));
-        });
+        btn.addEventListener('click', () => resetClause(Number(btn.dataset.resetClause)));
+      });
+      clauseGrid.querySelectorAll('[data-quick-clause]').forEach(btn => {
+        btn.addEventListener('click', () => toggleQuickSelection('clause', Number(btn.dataset.quickClause)));
       });
     }
 
@@ -731,9 +806,7 @@
     }
 
     function getStatusMarkup() {
-      if (!tokens.length) {
-        return '尚未切詞。';
-      }
+      if (!tokens.length) return '尚未切詞。';
 
       const step = roleSteps[activeRoleIndex];
       const clauseTokens = getClauseTokens(activeClauseIndex);
@@ -743,22 +816,17 @@
 
     function renderRoleTokens(roleId) {
       const clauseTokens = getClauseTokens(activeClauseIndex);
-      if (!clauseTokens.length) {
-        return '<div class="placeholder">此子句目前沒有可分析的字詞。</div>';
-      }
+      if (!clauseTokens.length) return '<div class="placeholder">此子句目前沒有可分析的字詞。</div>';
 
       const roleState = getRoleState(activeClauseIndex, roleId);
       const selectedSet = new Set(roleState.selected);
-      const visibleTokens = roleState.confirmed
-        ? clauseTokens.filter(token => selectedSet.has(token.id))
-        : clauseTokens;
+      const visibleTokens = roleState.confirmed ? clauseTokens.filter(token => selectedSet.has(token.id)) : clauseTokens;
+      const anchorId = quickSelectionState.role[getQuickAnchorKey('role', activeClauseIndex, roleId)];
 
-      if (!visibleTokens.length) {
-        return '<div class="placeholder">目前沒有保留任何字詞。</div>';
-      }
+      if (!visibleTokens.length) return '<div class="placeholder">目前沒有保留任何字詞。</div>';
 
       return visibleTokens.map(token => `
-        <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''}" data-role-id="${roleId}" data-token-id="${token.id}">${token.text}</button>
+        <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''} ${anchorId === token.id ? 'quick-anchor' : ''}" data-role-id="${roleId}" data-token-id="${token.id}">${token.text}</button>
       `).join('');
     }
 
@@ -777,19 +845,21 @@
           ${step.roles.map(role => {
             const state = getRoleState(activeClauseIndex, role.id);
             return `
-              <div class="role-box" data-role-id="${role.id}">
+              <div class="role-box ${state.confirmed ? 'confirmed' : ''}" data-role-id="${role.id}">
                 <div class="role-box-header">
                   <div>
                     <div class="role-title">${role.label}</div>
                     <div class="role-chip ${role.chipClass}">${role.label}</div>
                   </div>
-                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                  <div class="inline-actions">
+                    <button class="small-btn ${state.quickSelectionEnabled ? 'active-toggle' : ''}" data-quick-role="${role.id}">${state.quickSelectionEnabled ? '快速選取：開' : '快速選取：關'}</button>
                     <button class="small-btn" data-reset-role="${role.id}">重設此區</button>
                     <button class="small-btn primary" data-confirm-role="${role.id}">確認</button>
                   </div>
                 </div>
                 <div class="token-field">${renderRoleTokens(role.id)}</div>
                 <div class="muted" style="margin-top: 8px;">
+                  ${state.quickSelectionEnabled ? '快速選取模式已開啟：先點起點，再點終點，可一次選取中間所有字詞。' : ''}
                   ${state.confirmed ? '已確認，只顯示保留字詞。' : '尚未確認，目前顯示此子句的所有字詞，且預設不選取。'}
                 </div>
               </div>
@@ -803,21 +873,16 @@
       `;
 
       stepPanel.querySelectorAll('[data-token-id]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          toggleRoleToken(btn.dataset.roleId, Number(btn.dataset.tokenId));
-        });
+        btn.addEventListener('click', () => handleRoleTokenClick(btn.dataset.roleId, Number(btn.dataset.tokenId)));
       });
-
       stepPanel.querySelectorAll('[data-confirm-role]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          confirmRole(btn.dataset.confirmRole);
-        });
+        btn.addEventListener('click', () => confirmRole(btn.dataset.confirmRole));
       });
-
       stepPanel.querySelectorAll('[data-reset-role]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          resetRole(btn.dataset.resetRole);
-        });
+        btn.addEventListener('click', () => resetRole(btn.dataset.resetRole));
+      });
+      stepPanel.querySelectorAll('[data-quick-role]').forEach(btn => {
+        btn.addEventListener('click', () => toggleQuickSelection('role', activeClauseIndex, btn.dataset.quickRole));
       });
 
       document.getElementById('prevStepBtn').addEventListener('click', () => {
@@ -825,7 +890,6 @@
         renderTabs();
         renderStepPanel();
       });
-
       document.getElementById('nextStepBtn').addEventListener('click', () => {
         activeRoleIndex = Math.min(roleSteps.length - 1, activeRoleIndex + 1);
         renderTabs();
@@ -833,14 +897,42 @@
       });
     }
 
+    function selectTokenRange(existingSelection, tokenSourceIds, startId, endId) {
+      const startIndex = tokenSourceIds.indexOf(startId);
+      const endIndex = tokenSourceIds.indexOf(endId);
+      if (startIndex === -1 || endIndex === -1) return existingSelection;
+      const [from, to] = startIndex <= endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+      const nextSet = new Set(existingSelection);
+      tokenSourceIds.slice(from, to + 1).forEach(id => nextSet.add(id));
+      return tokenSourceIds.filter(id => nextSet.has(id));
+    }
+
+    function handleClauseTokenClick(clauseIndex, tokenId) {
+      const state = clauseSelections[clauseIndex];
+      if (state.quickSelectionEnabled) {
+        const key = getQuickAnchorKey('clause', clauseIndex);
+        const currentAnchor = quickSelectionState.clause[key];
+        if (currentAnchor === undefined) {
+          quickSelectionState.clause[key] = tokenId;
+          renderClauseGrid();
+          return;
+        }
+        state.selected = selectTokenRange(state.selected, tokens.map(token => token.id), currentAnchor, tokenId);
+        delete quickSelectionState.clause[key];
+        state.confirmed = false;
+        renderStructureStatus();
+        renderClauseGrid();
+        renderStepPanel();
+        return;
+      }
+      toggleClauseToken(clauseIndex, tokenId);
+    }
+
     function toggleClauseToken(clauseIndex, tokenId) {
       const state = clauseSelections[clauseIndex];
       const set = new Set(state.selected);
-      if (set.has(tokenId)) {
-        set.delete(tokenId);
-      } else {
-        set.add(tokenId);
-      }
+      if (set.has(tokenId)) set.delete(tokenId);
+      else set.add(tokenId);
       state.selected = tokens.map(token => token.id).filter(id => set.has(id));
       state.confirmed = false;
       renderStructureStatus();
@@ -857,23 +949,45 @@
     }
 
     function resetClause(clauseIndex) {
+      const quickState = clauseSelections[clauseIndex].quickSelectionEnabled;
       clauseSelections[clauseIndex] = createDefaultClauseState(clauseIndex);
+      clauseSelections[clauseIndex].quickSelectionEnabled = quickState;
       assignments[clauseIndex] = createRoleState();
+      delete quickSelectionState.clause[getQuickAnchorKey('clause', clauseIndex)];
+      Object.keys(quickSelectionState.role)
+        .filter(key => key.startsWith(`role-${clauseIndex}-`))
+        .forEach(key => delete quickSelectionState.role[key]);
       renderStructureStatus();
       renderClauseGrid();
       renderTabs();
       renderStepPanel();
     }
 
+    function handleRoleTokenClick(roleId, tokenId) {
+      const roleState = getRoleState(activeClauseIndex, roleId);
+      if (roleState.quickSelectionEnabled) {
+        const key = getQuickAnchorKey('role', activeClauseIndex, roleId);
+        const currentAnchor = quickSelectionState.role[key];
+        if (currentAnchor === undefined) {
+          quickSelectionState.role[key] = tokenId;
+          renderStepPanel();
+          return;
+        }
+        roleState.selected = selectTokenRange(roleState.selected, getClauseTokens(activeClauseIndex).map(token => token.id), currentAnchor, tokenId);
+        delete quickSelectionState.role[key];
+        roleState.confirmed = false;
+        renderStepPanel();
+        return;
+      }
+      toggleRoleToken(roleId, tokenId);
+    }
+
     function toggleRoleToken(roleId, tokenId) {
       const roleState = getRoleState(activeClauseIndex, roleId);
       const availableTokenIds = getClauseTokens(activeClauseIndex).map(token => token.id);
       const set = new Set(roleState.selected);
-      if (set.has(tokenId)) {
-        set.delete(tokenId);
-      } else {
-        set.add(tokenId);
-      }
+      if (set.has(tokenId)) set.delete(tokenId);
+      else set.add(tokenId);
       roleState.selected = availableTokenIds.filter(id => set.has(id));
       roleState.confirmed = false;
       renderStepPanel();
@@ -885,25 +999,64 @@
     }
 
     function resetRole(roleId) {
-      getRoleState(activeClauseIndex, roleId).selected = [];
-      getRoleState(activeClauseIndex, roleId).confirmed = false;
+      const roleState = getRoleState(activeClauseIndex, roleId);
+      const quickEnabled = roleState.quickSelectionEnabled;
+      roleState.selected = [];
+      roleState.confirmed = false;
+      roleState.quickSelectionEnabled = quickEnabled;
+      delete quickSelectionState.role[getQuickAnchorKey('role', activeClauseIndex, roleId)];
       renderStepPanel();
+    }
+
+    function clauseHasEdits(clauseIndex) {
+      const clauseState = clauseSelections[clauseIndex];
+      if (!clauseState) return false;
+      if (clauseState.selected.length || clauseState.confirmed) return true;
+      return roleSteps.some(step => step.roles.some(role => {
+        const state = getRoleState(clauseIndex, role.id);
+        return state && (state.selected.length || state.confirmed);
+      }));
+    }
+
+    function applyClauseCountChange(nextCount) {
+      clauseCount = nextCount;
+      normalizeStateAfterResize(nextCount);
+      clauseCountSlider.value = String(nextCount);
+      clauseCountValue.textContent = String(nextCount);
+      renderAll();
+    }
+
+    function maybeUpdateClauseCount(nextCount) {
+      if (nextCount === clauseCount) return;
+      if (nextCount < clauseCount) {
+        const removedEdited = Array.from({ length: clauseCount - nextCount }, (_, offset) => nextCount + offset)
+          .some(index => clauseHasEdits(index));
+        if (removedEdited) {
+          const confirmed = window.confirm(`若繼續，系統只會保留前 ${nextCount} 個子句容器，後面的已編輯內容都會被移除。要繼續嗎？`);
+          if (!confirmed) {
+            clauseCountSlider.value = String(clauseCount);
+            clauseCountValue.textContent = String(clauseCount);
+            return;
+          }
+        }
+      }
+      applyClauseCountChange(nextCount);
     }
 
     function rebuildAnalysis() {
       tokens = tokenizeChinese(sentenceInput.value);
-      initializeClauseData();
+      initializeClauseData(clauseCount);
       renderAll();
       scrollClauseTabIntoView(activeClauseIndex);
     }
 
-    function resetAll() {
-      sentenceInput.value = '';
-      tokens = [];
-      activeClauseIndex = 0;
-      activeRoleIndex = 0;
-      initializeClauseData();
+    function resetSentence() {
+      sentenceInput.value = defaultSentence;
+      tokens = tokenizeChinese(sentenceInput.value);
+      clauseCount = Number(clauseCountSlider.value);
+      initializeClauseData(clauseCount);
       renderAll();
+      scrollClauseTabIntoView(activeClauseIndex);
     }
 
     function renderAll() {
@@ -916,17 +1069,20 @@
     }
 
     clauseCountSlider.addEventListener('input', () => {
-      clauseCount = Number(clauseCountSlider.value);
-      clauseCountValue.textContent = String(clauseCount);
-      initializeClauseData();
-      renderAll();
-      scrollClauseTabIntoView(activeClauseIndex);
+      pendingClauseCount = Number(clauseCountSlider.value);
+      clauseCountValue.textContent = String(pendingClauseCount);
+    });
+
+    clauseCountSlider.addEventListener('change', () => {
+      maybeUpdateClauseCount(Number(clauseCountSlider.value));
     });
 
     tokenizeBtn.addEventListener('click', rebuildAnalysis);
-    resetAllBtn.addEventListener('click', resetAll);
-
+    resetSentenceBtn.addEventListener('click', resetSentence);
     sentenceInput.addEventListener('input', updateSentencePreview);
+    clearTranslationBtn.addEventListener('click', () => {
+      translationInput.value = '';
+    });
 
     toggleEditorBtn.addEventListener('click', () => {
       const expanded = floatingEditor.dataset.expanded === 'true';
@@ -941,7 +1097,7 @@
     });
 
     tokens = tokenizeChinese(sentenceInput.value);
-    initializeClauseData();
+    initializeClauseData(clauseCount);
     renderAll();
     window.setTimeout(() => scrollClauseTabIntoView(0), 60);
   </script>
