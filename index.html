@@ -520,10 +520,12 @@
           先判斷這個句子有幾個子句（mental images），再逐一在每個子句容器中圈選屬於該子句的字詞。每兩個相鄰子句之間，也要標記連接兩者的連接裝置。按下「確認」後，會套用和詞性分析相同的邏輯：移除未選取字詞，只保留該區內容。
         </div>
         </div>
-        <div class="inline-actions">
+      <div class="inline-actions">
           <button id="toggleStructureBtn" class="small-btn hidden">展開步驟 1</button>
         </div>
       </div>
+
+      <div id="structureCollapsedSummary" class="review-item hidden"></div>
 
       <div id="structureBody">
       <div class="slider-box">
@@ -591,6 +593,27 @@
     </div>
   </div>
 
+  <div id="subjectModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div>
+        <h3>無主詞可選</h3>
+        <p class="muted">請檢查原始中文句子，並在目前子句中補回省略主詞後再進行主詞分析。</p>
+      </div>
+      <div class="review-item">
+        <strong>原始中文句子</strong>
+        <p id="subjectModalSentence" style="margin: 10px 0 0 0;"></p>
+      </div>
+      <div class="review-item">
+        <label for="subjectClauseInput"><strong>目前子句（可編輯）</strong></label>
+        <textarea id="subjectClauseInput" style="margin-top: 10px;"></textarea>
+      </div>
+      <div class="inline-actions">
+        <button id="subjectModalCancelBtn">取消</button>
+        <button id="subjectModalApplyBtn" class="primary">更新主詞分析字詞</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const sentenceInput = document.getElementById('sentenceInput');
     const tokenizeBtn = document.getElementById('tokenizeBtn');
@@ -602,6 +625,7 @@
     const clauseGrid = document.getElementById('clauseGrid');
     const structureStatus = document.getElementById('structureStatus');
     const structureBody = document.getElementById('structureBody');
+    const structureCollapsedSummary = document.getElementById('structureCollapsedSummary');
     const tabScroll = document.getElementById('tabScroll');
     const floatingEditor = document.getElementById('floatingEditor');
     const toggleEditorBtn = document.getElementById('toggleEditorBtn');
@@ -613,6 +637,11 @@
     const reviewBackBtn = document.getElementById('reviewBackBtn');
     const reviewConfirmBtn = document.getElementById('reviewConfirmBtn');
     const sentenceStructureInput = document.getElementById('sentenceStructureInput');
+    const subjectModal = document.getElementById('subjectModal');
+    const subjectModalSentence = document.getElementById('subjectModalSentence');
+    const subjectClauseInput = document.getElementById('subjectClauseInput');
+    const subjectModalCancelBtn = document.getElementById('subjectModalCancelBtn');
+    const subjectModalApplyBtn = document.getElementById('subjectModalApplyBtn');
 
     const defaultSentence = '小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。';
 
@@ -666,6 +695,7 @@
     let activeRoleIndex = 0;
     let clauseSelections = [];
     let connectingDevices = [];
+    let clauseTextOverrides = [];
     let assignments = [];
     let scrollTimer = null;
     let pendingClauseCount = clauseCount;
@@ -718,13 +748,14 @@
         connectorIndex: index,
         selected: [],
         confirmed: false,
-        quickSelectionEnabled: true
+        quickSelectionEnabled: false
       };
     }
 
     function initializeClauseData(count) {
       clauseSelections = Array.from({ length: count }, (_, index) => createDefaultClauseState(index));
       connectingDevices = Array.from({ length: Math.max(0, count - 1) }, (_, index) => createDefaultConnectorState(index));
+      clauseTextOverrides = Array.from({ length: count }, () => '');
       assignments = Array.from({ length: count }, () => createRoleState());
       activeClauseIndex = Math.min(activeClauseIndex, Math.max(0, count - 1));
       activeRoleIndex = Math.min(activeRoleIndex, roleSteps.length - 1);
@@ -733,6 +764,7 @@
     function normalizeStateAfterResize(nextCount) {
       clauseSelections = clauseSelections.slice(0, nextCount);
       connectingDevices = connectingDevices.slice(0, Math.max(0, nextCount - 1));
+      clauseTextOverrides = clauseTextOverrides.slice(0, nextCount);
       assignments = assignments.slice(0, nextCount);
 
       while (clauseSelections.length < nextCount) {
@@ -743,6 +775,9 @@
       }
       while (connectingDevices.length < Math.max(0, nextCount - 1)) {
         connectingDevices.push(createDefaultConnectorState(connectingDevices.length));
+      }
+      while (clauseTextOverrides.length < nextCount) {
+        clauseTextOverrides.push('');
       }
 
       clauseSelections.forEach((state, index) => {
@@ -773,6 +808,14 @@
 
     function getRoleState(clauseIndex, roleId) {
       return assignments[clauseIndex]?.[roleId];
+    }
+
+    function getClauseAnalysisTokens(clauseIndex) {
+      const overrideText = clauseTextOverrides[clauseIndex]?.trim();
+      if (overrideText) {
+        return tokenizeChinese(overrideText).map((token, index) => ({ id: index, text: token.text }));
+      }
+      return getClauseTokens(clauseIndex);
     }
 
     function getConnectorState(connectorIndex) {
@@ -824,6 +867,20 @@
       `;
     }
 
+    function renderCollapsedStructureSummary() {
+      const sequence = [];
+      clauseSelections.forEach((_, index) => {
+        sequence.push(`<div class="review-token clause">Clause ${index + 1}：${getClauseReviewText(index) || '（空）'}</div>`);
+        if (index < connectingDevices.length) {
+          sequence.push(`<div class="review-token connector">${getConnectorReviewText(index) || '（無連接裝置）'}</div>`);
+        }
+      });
+      structureCollapsedSummary.innerHTML = `
+        <strong>辨認句子結構分析結果</strong>
+        <div class="review-token-row" style="margin-top: 10px;">${sequence.join('')}</div>
+      `;
+    }
+
     function showReviewModal() {
       renderReviewModal();
       if (!sentenceStructureInput.value.trim()) {
@@ -840,11 +897,23 @@
       structureBody.classList.toggle('hidden', structureCollapsed);
       toggleStructureBtn.classList.toggle('hidden', !structureCollapsed);
       toggleStructureBtn.textContent = structureCollapsed ? '展開步驟 1' : '收合步驟 1';
+      structureCollapsedSummary.classList.toggle('hidden', !structureCollapsed);
+      if (structureCollapsed) renderCollapsedStructureSummary();
     }
 
     function updateSentencePreview() {
       const text = sentenceInput.value.trim();
       sentencePreview.textContent = text || '（尚未輸入句子）';
+    }
+
+    function openSubjectModal() {
+      subjectModalSentence.textContent = sentenceInput.value.trim() || '（尚未輸入句子）';
+      subjectClauseInput.value = clauseTextOverrides[activeClauseIndex]?.trim() || getClauseReviewText(activeClauseIndex);
+      subjectModal.classList.remove('hidden');
+    }
+
+    function hideSubjectModal() {
+      subjectModal.classList.add('hidden');
     }
 
     function getQuickAnchorKey(kind, clauseIndex, roleId = '') {
@@ -1072,7 +1141,7 @@
     }
 
     function renderRoleTokens(roleId) {
-      const clauseTokens = getClauseTokens(activeClauseIndex);
+      const clauseTokens = getClauseAnalysisTokens(activeClauseIndex);
       if (!clauseTokens.length) return '<div class="placeholder">此子句目前沒有可分析的字詞。</div>';
 
       const roleState = getRoleState(activeClauseIndex, roleId);
@@ -1089,7 +1158,7 @@
 
     function renderStepPanel() {
       const step = roleSteps[activeRoleIndex];
-      const clauseTokens = getClauseTokens(activeClauseIndex);
+      const clauseTokens = getClauseAnalysisTokens(activeClauseIndex);
       const currentStepConfirmed = areCurrentStepRolesConfirmed();
       const onLastRole = activeRoleIndex === roleSteps.length - 1;
       const canGoNextRole = currentStepConfirmed && !onLastRole;
@@ -1101,6 +1170,7 @@
           <div class="step-meta">${step.description}</div>
         </div>
         <div class="hint-box">此區顯示的字詞來源為目前捲動選中的子句：<strong>${clauseTokens.map(token => token.text).join(' ') || '（無字詞）'}</strong></div>
+        ${step.id === 'subject' ? '<div class="inline-actions"><button id="openSubjectModalBtn">無主詞可選</button></div>' : ''}
         <div class="role-grid">
           ${step.roles.map(role => {
             const state = getRoleState(activeClauseIndex, role.id);
@@ -1145,6 +1215,10 @@
       stepPanel.querySelectorAll('[data-quick-role]').forEach(btn => {
         btn.addEventListener('click', () => toggleQuickSelection('role', activeClauseIndex, btn.dataset.quickRole));
       });
+      const openSubjectModalBtn = document.getElementById('openSubjectModalBtn');
+      if (openSubjectModalBtn) {
+        openSubjectModalBtn.addEventListener('click', openSubjectModal);
+      }
 
       document.getElementById('prevStepBtn').addEventListener('click', () => {
         activeRoleIndex = Math.max(0, activeRoleIndex - 1);
@@ -1279,6 +1353,7 @@
       const quickState = clauseSelections[clauseIndex].quickSelectionEnabled;
       clauseSelections[clauseIndex] = createDefaultClauseState(clauseIndex);
       clauseSelections[clauseIndex].quickSelectionEnabled = quickState;
+      clauseTextOverrides[clauseIndex] = '';
       assignments[clauseIndex] = createRoleState();
       delete quickSelectionState.clause[getQuickAnchorKey('clause', clauseIndex)];
       Object.keys(quickSelectionState.role)
@@ -1313,7 +1388,7 @@
           renderStepPanel();
           return;
         }
-        roleState.selected = selectTokenRange(roleState.selected, getClauseTokens(activeClauseIndex).map(token => token.id), currentAnchor, tokenId);
+        roleState.selected = selectTokenRange(roleState.selected, getClauseAnalysisTokens(activeClauseIndex).map(token => token.id), currentAnchor, tokenId);
         delete quickSelectionState.role[key];
         roleState.confirmed = false;
         renderStepPanel();
@@ -1324,7 +1399,7 @@
 
     function toggleRoleToken(roleId, tokenId) {
       const roleState = getRoleState(activeClauseIndex, roleId);
-      const availableTokenIds = getClauseTokens(activeClauseIndex).map(token => token.id);
+      const availableTokenIds = getClauseAnalysisTokens(activeClauseIndex).map(token => token.id);
       const set = new Set(roleState.selected);
       if (set.has(tokenId)) set.delete(tokenId);
       else set.add(tokenId);
@@ -1452,6 +1527,15 @@
       structureCollapsed = true;
       hideReviewModal();
       renderAll();
+    });
+    subjectModalCancelBtn.addEventListener('click', hideSubjectModal);
+    subjectModalApplyBtn.addEventListener('click', () => {
+      clauseTextOverrides[activeClauseIndex] = subjectClauseInput.value.trim();
+      assignments[activeClauseIndex] = createRoleState();
+      activeRoleIndex = 0;
+      hideSubjectModal();
+      renderTabs();
+      renderStepPanel();
     });
 
     toggleEditorBtn.addEventListener('click', () => {
