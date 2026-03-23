@@ -528,6 +528,7 @@
       <div id="structureCollapsedSummary" class="review-item hidden"></div>
 
       <div id="structureBody">
+      <p id="structureOriginalSentence" class="muted"></p>
       <div class="slider-box">
         <div class="slider-header">
           <div>
@@ -538,8 +539,6 @@
         </div>
         <input id="clauseCountSlider" type="range" min="1" max="6" step="1" value="2" />
       </div>
-
-      <div id="structureStatus" class="status"></div>
       <div id="clauseGrid" class="clause-grid"></div>
       </div>
     </section>
@@ -623,7 +622,7 @@
     const clauseCountSlider = document.getElementById('clauseCountSlider');
     const clauseCountValue = document.getElementById('clauseCountValue');
     const clauseGrid = document.getElementById('clauseGrid');
-    const structureStatus = document.getElementById('structureStatus');
+    const structureOriginalSentence = document.getElementById('structureOriginalSentence');
     const structureBody = document.getElementById('structureBody');
     const structureCollapsedSummary = document.getElementById('structureCollapsedSummary');
     const structureSection = document.getElementById('structureSection');
@@ -910,6 +909,7 @@
     function updateSentencePreview() {
       const text = sentenceInput.value.trim();
       sentencePreview.textContent = text || '（尚未輸入句子）';
+      structureOriginalSentence.textContent = text ? `原始句子：${text}` : '原始句子：（尚未輸入句子）';
     }
 
     function openSubjectModal() {
@@ -970,17 +970,6 @@
       const trimmedCount = Math.max(0, clauseSelections.length - clauseCount);
       if (!trimmedCount) return '';
       return `<div class="warning-box">提醒：若把子句數量調小，系統只會保留前 ${clauseCount} 個子句；後面的子句資料會被移除。</div>`;
-    }
-
-    function renderStructureStatus() {
-      if (!tokens.length) {
-        structureStatus.innerHTML = '尚未切詞，請先在頁面上方輸入中文句子，並按下「切成字詞並重建分析」。';
-        return;
-      }
-
-      const confirmedCount = clauseSelections.filter(item => item.confirmed).length;
-      const connectorConfirmedCount = connectingDevices.filter(item => item.confirmed).length;
-      structureStatus.innerHTML = `目前共 <strong>${tokens.length}</strong> 個字詞，設定為 <strong>${clauseCount}</strong> 個子句；已確認 <strong>${confirmedCount}</strong> / <strong>${clauseCount}</strong> 個子句，連接裝置已確認 <strong>${connectorConfirmedCount}</strong> / <strong>${connectingDevices.length}</strong> 個。`;
     }
 
     function renderClauseTokens(clauseIndex) {
@@ -1277,7 +1266,6 @@
         state.confirmed = false;
         reviewModalShown = false;
         structureCollapsed = false;
-        renderStructureStatus();
         renderClauseGrid();
         renderStepPanel();
         return;
@@ -1300,7 +1288,6 @@
         state.confirmed = false;
         reviewModalShown = false;
         structureCollapsed = false;
-        renderStructureStatus();
         renderClauseGrid();
         return;
       }
@@ -1316,14 +1303,12 @@
       state.confirmed = false;
       reviewModalShown = false;
       structureCollapsed = false;
-      renderStructureStatus();
       renderClauseGrid();
       renderStepPanel();
     }
 
     function confirmClause(clauseIndex) {
       clauseSelections[clauseIndex].confirmed = true;
-      renderStructureStatus();
       renderClauseGrid();
       renderTabs();
       renderStepPanel();
@@ -1341,13 +1326,11 @@
       state.confirmed = false;
       reviewModalShown = false;
       structureCollapsed = false;
-      renderStructureStatus();
       renderClauseGrid();
     }
 
     function confirmConnector(connectorIndex) {
       getConnectorState(connectorIndex).confirmed = true;
-      renderStructureStatus();
       renderClauseGrid();
       if (allStructureConfirmed() && !reviewModalShown) {
         showReviewModal();
@@ -1366,7 +1349,6 @@
         .forEach(key => delete quickSelectionState.role[key]);
       reviewModalShown = false;
       structureCollapsed = false;
-      renderStructureStatus();
       renderClauseGrid();
       renderTabs();
       renderStepPanel();
@@ -1379,7 +1361,6 @@
       delete quickSelectionState.connector[getQuickAnchorKey('connector', connectorIndex)];
       reviewModalShown = false;
       structureCollapsed = false;
-      renderStructureStatus();
       renderClauseGrid();
     }
 
@@ -1497,7 +1478,6 @@
       updateSentencePreview();
       clauseCountValue.textContent = String(clauseCount);
       updateStructureVisibility();
-      renderStructureStatus();
       renderClauseGrid();
       renderTabs();
       renderStepPanel();
