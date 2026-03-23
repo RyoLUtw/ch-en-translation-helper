@@ -192,6 +192,7 @@
     }
 
     .clause-box,
+    .connector-box,
     .role-box {
       border: 1px solid var(--border);
       border-radius: 16px;
@@ -200,6 +201,7 @@
     }
 
     .clause-box.confirmed,
+    .connector-box.confirmed,
     .role-box.confirmed {
       background: #f8fbff;
       border-color: #93c5fd;
@@ -452,6 +454,30 @@
       background: var(--panel-soft);
     }
 
+    .review-token-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .review-token {
+      padding: 10px 14px;
+      border: 2px solid #111827;
+      background: white;
+      color: #111827;
+      font-weight: 700;
+    }
+
+    .review-token.clause {
+      border-radius: 4px;
+    }
+
+    .review-token.connector {
+      border-radius: 999px;
+      background: #111827;
+      color: white;
+    }
+
     @media (max-width: 900px) {
       .app {
         padding: 16px 16px calc(var(--editor-height) + 24px);
@@ -490,8 +516,8 @@
       <div class="clause-box-header">
         <div>
         <h2>1. 辨認句子結構</h2>
-        <div class="step-meta">
-          先判斷這個句子有幾個子句（mental images），再逐一在每個子句容器中圈選屬於該子句的字詞。按下「確認」後，會套用和詞性分析相同的邏輯：移除未選取字詞，只保留該子句內容。
+      <div class="step-meta">
+          先判斷這個句子有幾個子句（mental images），再逐一在每個子句容器中圈選屬於該子句的字詞。每兩個相鄰子句之間，也要標記連接兩者的連接裝置。按下「確認」後，會套用和詞性分析相同的邏輯：移除未選取字詞，只保留該區內容。
         </div>
         </div>
         <div class="inline-actions">
@@ -551,12 +577,16 @@
     <div class="modal">
       <div>
         <h3>確認子句辨認結果</h3>
-        <p class="muted">以下是目前各子句的整理結果。確認後會先收合步驟 1，你仍可之後再次展開修改。</p>
+        <p class="muted">以下是目前各子句與連接裝置的整理結果。請先寫出整句大結構，使用 <code>...</code> 作為子句占位符，例如：<code>..., but ...</code>。按下「下一步(翻譯子句)」後，內容會自動帶入底部的英文翻譯編輯器。</p>
       </div>
       <div id="reviewList" class="review-list"></div>
+      <div class="review-item">
+        <label for="sentenceStructureInput"><strong>整句大結構</strong></label>
+        <input id="sentenceStructureInput" type="text" style="width: 100%; margin-top: 10px; padding: 12px 14px; border-radius: 12px; border: 1px solid #d1d5db; font: inherit;" placeholder="例如：..., but ..." />
+      </div>
       <div class="inline-actions">
         <button id="reviewBackBtn">返回修改</button>
-        <button id="reviewConfirmBtn" class="primary">確認並收合步驟 1</button>
+        <button id="reviewConfirmBtn" class="primary">下一步(翻譯子句)</button>
       </div>
     </div>
   </div>
@@ -582,6 +612,7 @@
     const reviewList = document.getElementById('reviewList');
     const reviewBackBtn = document.getElementById('reviewBackBtn');
     const reviewConfirmBtn = document.getElementById('reviewConfirmBtn');
+    const sentenceStructureInput = document.getElementById('sentenceStructureInput');
 
     const defaultSentence = '小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。';
 
@@ -634,6 +665,7 @@
     let activeClauseIndex = 0;
     let activeRoleIndex = 0;
     let clauseSelections = [];
+    let connectingDevices = [];
     let assignments = [];
     let scrollTimer = null;
     let pendingClauseCount = clauseCount;
@@ -641,6 +673,7 @@
     let reviewModalShown = false;
     const quickSelectionState = {
       clause: {},
+      connector: {},
       role: {}
     };
 
@@ -680,8 +713,18 @@
       return store;
     }
 
+    function createDefaultConnectorState(index) {
+      return {
+        connectorIndex: index,
+        selected: [],
+        confirmed: false,
+        quickSelectionEnabled: true
+      };
+    }
+
     function initializeClauseData(count) {
       clauseSelections = Array.from({ length: count }, (_, index) => createDefaultClauseState(index));
+      connectingDevices = Array.from({ length: Math.max(0, count - 1) }, (_, index) => createDefaultConnectorState(index));
       assignments = Array.from({ length: count }, () => createRoleState());
       activeClauseIndex = Math.min(activeClauseIndex, Math.max(0, count - 1));
       activeRoleIndex = Math.min(activeRoleIndex, roleSteps.length - 1);
@@ -689,6 +732,7 @@
 
     function normalizeStateAfterResize(nextCount) {
       clauseSelections = clauseSelections.slice(0, nextCount);
+      connectingDevices = connectingDevices.slice(0, Math.max(0, nextCount - 1));
       assignments = assignments.slice(0, nextCount);
 
       while (clauseSelections.length < nextCount) {
@@ -697,9 +741,16 @@
       while (assignments.length < nextCount) {
         assignments.push(createRoleState());
       }
+      while (connectingDevices.length < Math.max(0, nextCount - 1)) {
+        connectingDevices.push(createDefaultConnectorState(connectingDevices.length));
+      }
 
       clauseSelections.forEach((state, index) => {
         state.clauseIndex = index;
+        state.quickSelectionEnabled = Boolean(state.quickSelectionEnabled);
+      });
+      connectingDevices.forEach((state, index) => {
+        state.connectorIndex = index;
         state.quickSelectionEnabled = Boolean(state.quickSelectionEnabled);
       });
 
@@ -724,8 +775,14 @@
       return assignments[clauseIndex]?.[roleId];
     }
 
-    function allClausesConfirmed() {
-      return clauseSelections.length > 0 && clauseSelections.every(state => state.confirmed);
+    function getConnectorState(connectorIndex) {
+      return connectingDevices[connectorIndex];
+    }
+
+    function allStructureConfirmed() {
+      const clausesReady = clauseSelections.length > 0 && clauseSelections.every(state => state.confirmed);
+      const connectorsReady = connectingDevices.every(state => state.confirmed);
+      return clausesReady && connectorsReady;
     }
 
     function areCurrentStepRolesConfirmed() {
@@ -741,17 +798,37 @@
       return getClauseTokens(clauseIndex).map(token => token.text).join('');
     }
 
+    function getConnectorReviewText(connectorIndex) {
+      const connectorState = getConnectorState(connectorIndex);
+      if (!connectorState) return '';
+      const ids = connectorState.confirmed || connectorState.selected.length
+        ? connectorState.selected
+        : tokens.map(token => token.id);
+      const set = new Set(ids);
+      return tokens.filter(token => set.has(token.id)).map(token => token.text).join('');
+    }
+
     function renderReviewModal() {
-      reviewList.innerHTML = clauseSelections.map((_, index) => `
+      const sequence = [];
+      clauseSelections.forEach((_, index) => {
+        sequence.push(`<div class="review-token clause">Clause ${index + 1}：${getClauseReviewText(index) || '（空）'}</div>`);
+        if (index < connectingDevices.length) {
+          sequence.push(`<div class="review-token connector">${getConnectorReviewText(index) || '（無連接裝置）'}</div>`);
+        }
+      });
+      reviewList.innerHTML = `
         <div class="review-item">
-          <strong>Clause ${index + 1}</strong>
-          <div style="margin-top: 6px;">${getClauseReviewText(index) || '（尚未選取內容）'}</div>
+          <strong>分析結果</strong>
+          <div class="review-token-row" style="margin-top: 10px;">${sequence.join('')}</div>
         </div>
-      `).join('');
+      `;
     }
 
     function showReviewModal() {
       renderReviewModal();
+      if (!sentenceStructureInput.value.trim()) {
+        sentenceStructureInput.value = translationInput.value.trim();
+      }
       reviewModal.classList.remove('hidden');
     }
 
@@ -771,13 +848,19 @@
     }
 
     function getQuickAnchorKey(kind, clauseIndex, roleId = '') {
-      return kind === 'clause' ? `clause-${clauseIndex}` : `role-${clauseIndex}-${roleId}`;
+      if (kind === 'clause') return `clause-${clauseIndex}`;
+      if (kind === 'connector') return `connector-${clauseIndex}`;
+      return `role-${clauseIndex}-${roleId}`;
     }
 
     function clearInvalidQuickAnchors() {
       Object.keys(quickSelectionState.clause).forEach(key => {
         const match = key.match(/^clause-(\d+)$/);
         if (match && Number(match[1]) >= clauseCount) delete quickSelectionState.clause[key];
+      });
+      Object.keys(quickSelectionState.connector).forEach(key => {
+        const match = key.match(/^connector-(\d+)$/);
+        if (match && Number(match[1]) >= connectingDevices.length) delete quickSelectionState.connector[key];
       });
 
       Object.keys(quickSelectionState.role).forEach(key => {
@@ -791,6 +874,13 @@
         const clauseState = clauseSelections[clauseIndex];
         clauseState.quickSelectionEnabled = !clauseState.quickSelectionEnabled;
         if (!clauseState.quickSelectionEnabled) delete quickSelectionState.clause[getQuickAnchorKey(kind, clauseIndex)];
+        renderClauseGrid();
+        return;
+      }
+      if (kind === 'connector') {
+        const connectorState = getConnectorState(clauseIndex);
+        connectorState.quickSelectionEnabled = !connectorState.quickSelectionEnabled;
+        if (!connectorState.quickSelectionEnabled) delete quickSelectionState.connector[getQuickAnchorKey(kind, clauseIndex)];
         renderClauseGrid();
         return;
       }
@@ -814,7 +904,8 @@
       }
 
       const confirmedCount = clauseSelections.filter(item => item.confirmed).length;
-      structureStatus.innerHTML = `目前共 <strong>${tokens.length}</strong> 個字詞，設定為 <strong>${clauseCount}</strong> 個子句；已確認 <strong>${confirmedCount}</strong> / <strong>${clauseCount}</strong> 個子句。`;
+      const connectorConfirmedCount = connectingDevices.filter(item => item.confirmed).length;
+      structureStatus.innerHTML = `目前共 <strong>${tokens.length}</strong> 個字詞，設定為 <strong>${clauseCount}</strong> 個子句；已確認 <strong>${confirmedCount}</strong> / <strong>${clauseCount}</strong> 個子句，連接裝置已確認 <strong>${connectorConfirmedCount}</strong> / <strong>${connectingDevices.length}</strong> 個。`;
     }
 
     function renderClauseTokens(clauseIndex) {
@@ -832,8 +923,25 @@
       `).join('');
     }
 
+    function renderConnectorTokens(connectorIndex) {
+      if (!tokens.length) return '<div class="placeholder">請先切成字詞。</div>';
+
+      const state = getConnectorState(connectorIndex);
+      const selectedSet = new Set(state.selected);
+      const visibleTokens = state.confirmed ? tokens.filter(token => selectedSet.has(token.id)) : tokens;
+      const anchorId = quickSelectionState.connector[getQuickAnchorKey('connector', connectorIndex)];
+
+      if (!visibleTokens.length) return '<div class="placeholder">目前沒有保留任何字詞。</div>';
+
+      return visibleTokens.map(token => `
+        <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''} ${anchorId === token.id ? 'quick-anchor' : ''}" data-connector-token="${token.id}" data-connector-index="${connectorIndex}">${token.text}</button>
+      `).join('');
+    }
+
     function renderClauseGrid() {
-      clauseGrid.innerHTML = `${getClauseWarningMarkup()}${clauseSelections.map((state, index) => `
+      const items = [];
+      clauseSelections.forEach((state, index) => {
+        items.push(`
         <div class="clause-box ${state.confirmed ? 'confirmed' : ''}">
           <div class="clause-box-header">
             <div>
@@ -851,20 +959,57 @@
             ${state.quickSelectionEnabled ? '快速選取模式已開啟：先點起點，再點終點，可一次選取中間所有字詞。' : ''}
             ${state.confirmed ? '已確認，只顯示保留字詞。' : '尚未確認，目前顯示整句所有字詞，可點選屬於此子句的內容。'}
           </div>
-        </div>
-      `).join('')}`;
+        </div>`);
+
+        if (index < connectingDevices.length) {
+          const connectorState = getConnectorState(index);
+          items.push(`
+          <div class="connector-box ${connectorState.confirmed ? 'confirmed' : ''}">
+            <div class="clause-box-header">
+              <div>
+                <div class="clause-title">Clause ${index + 1} ↔ Clause ${index + 2}</div>
+                <div class="clause-chip">連接裝置</div>
+              </div>
+              <div class="clause-actions">
+                <button class="small-btn ${connectorState.quickSelectionEnabled ? 'active-toggle' : ''}" data-quick-connector="${index}">${connectorState.quickSelectionEnabled ? '快速選取：開' : '快速選取：關'}</button>
+                <button class="small-btn" data-reset-connector="${index}">重設連接裝置</button>
+                <button class="small-btn primary" data-confirm-connector="${index}">確認連接裝置</button>
+              </div>
+            </div>
+            <div class="token-field">${renderConnectorTokens(index)}</div>
+            <div class="muted" style="margin-top: 8px;">
+              ${connectorState.quickSelectionEnabled ? '快速選取模式已開啟：先點起點，再點終點，可一次選取中間所有字詞。' : ''}
+              ${connectorState.confirmed ? '已確認，只顯示保留字詞。' : '尚未確認，目前顯示整句所有字詞，請圈選連接這兩個子句的連接裝置。'}
+            </div>
+          </div>`);
+        }
+      });
+
+      clauseGrid.innerHTML = `${getClauseWarningMarkup()}${items.join('')}`;
 
       clauseGrid.querySelectorAll('[data-clause-token]').forEach(btn => {
         btn.addEventListener('click', () => handleClauseTokenClick(Number(btn.dataset.clauseIndex), Number(btn.dataset.clauseToken)));
       });
+      clauseGrid.querySelectorAll('[data-connector-token]').forEach(btn => {
+        btn.addEventListener('click', () => handleConnectorTokenClick(Number(btn.dataset.connectorIndex), Number(btn.dataset.connectorToken)));
+      });
       clauseGrid.querySelectorAll('[data-confirm-clause]').forEach(btn => {
         btn.addEventListener('click', () => confirmClause(Number(btn.dataset.confirmClause)));
+      });
+      clauseGrid.querySelectorAll('[data-confirm-connector]').forEach(btn => {
+        btn.addEventListener('click', () => confirmConnector(Number(btn.dataset.confirmConnector)));
       });
       clauseGrid.querySelectorAll('[data-reset-clause]').forEach(btn => {
         btn.addEventListener('click', () => resetClause(Number(btn.dataset.resetClause)));
       });
+      clauseGrid.querySelectorAll('[data-reset-connector]').forEach(btn => {
+        btn.addEventListener('click', () => resetConnector(Number(btn.dataset.resetConnector)));
+      });
       clauseGrid.querySelectorAll('[data-quick-clause]').forEach(btn => {
         btn.addEventListener('click', () => toggleQuickSelection('clause', Number(btn.dataset.quickClause)));
+      });
+      clauseGrid.querySelectorAll('[data-quick-connector]').forEach(btn => {
+        btn.addEventListener('click', () => toggleQuickSelection('connector', Number(btn.dataset.quickConnector)));
       });
     }
 
@@ -1061,6 +1206,28 @@
       toggleClauseToken(clauseIndex, tokenId);
     }
 
+    function handleConnectorTokenClick(connectorIndex, tokenId) {
+      const state = getConnectorState(connectorIndex);
+      if (state.quickSelectionEnabled) {
+        const key = getQuickAnchorKey('connector', connectorIndex);
+        const currentAnchor = quickSelectionState.connector[key];
+        if (currentAnchor === undefined) {
+          quickSelectionState.connector[key] = tokenId;
+          renderClauseGrid();
+          return;
+        }
+        state.selected = selectTokenRange(state.selected, tokens.map(token => token.id), currentAnchor, tokenId);
+        delete quickSelectionState.connector[key];
+        state.confirmed = false;
+        reviewModalShown = false;
+        structureCollapsed = false;
+        renderStructureStatus();
+        renderClauseGrid();
+        return;
+      }
+      toggleConnectorToken(connectorIndex, tokenId);
+    }
+
     function toggleClauseToken(clauseIndex, tokenId) {
       const state = clauseSelections[clauseIndex];
       const set = new Set(state.selected);
@@ -1081,7 +1248,29 @@
       renderClauseGrid();
       renderTabs();
       renderStepPanel();
-      if (allClausesConfirmed() && !reviewModalShown) {
+      if (allStructureConfirmed() && !reviewModalShown) {
+        showReviewModal();
+      }
+    }
+
+    function toggleConnectorToken(connectorIndex, tokenId) {
+      const state = getConnectorState(connectorIndex);
+      const set = new Set(state.selected);
+      if (set.has(tokenId)) set.delete(tokenId);
+      else set.add(tokenId);
+      state.selected = tokens.map(token => token.id).filter(id => set.has(id));
+      state.confirmed = false;
+      reviewModalShown = false;
+      structureCollapsed = false;
+      renderStructureStatus();
+      renderClauseGrid();
+    }
+
+    function confirmConnector(connectorIndex) {
+      getConnectorState(connectorIndex).confirmed = true;
+      renderStructureStatus();
+      renderClauseGrid();
+      if (allStructureConfirmed() && !reviewModalShown) {
         showReviewModal();
       }
     }
@@ -1101,6 +1290,17 @@
       renderClauseGrid();
       renderTabs();
       renderStepPanel();
+    }
+
+    function resetConnector(connectorIndex) {
+      const quickState = getConnectorState(connectorIndex).quickSelectionEnabled;
+      connectingDevices[connectorIndex] = createDefaultConnectorState(connectorIndex);
+      connectingDevices[connectorIndex].quickSelectionEnabled = quickState;
+      delete quickSelectionState.connector[getQuickAnchorKey('connector', connectorIndex)];
+      reviewModalShown = false;
+      structureCollapsed = false;
+      renderStructureStatus();
+      renderClauseGrid();
     }
 
     function handleRoleTokenClick(roleId, tokenId) {
@@ -1158,6 +1358,11 @@
       }));
     }
 
+    function connectorHasEdits(connectorIndex) {
+      const connectorState = getConnectorState(connectorIndex);
+      return Boolean(connectorState && (connectorState.selected.length || connectorState.confirmed));
+    }
+
     function applyClauseCountChange(nextCount) {
       clauseCount = nextCount;
       normalizeStateAfterResize(nextCount);
@@ -1171,8 +1376,11 @@
     function maybeUpdateClauseCount(nextCount) {
       if (nextCount === clauseCount) return;
       if (nextCount < clauseCount) {
-        const removedEdited = Array.from({ length: clauseCount - nextCount }, (_, offset) => nextCount + offset)
+        const removedClauseEdited = Array.from({ length: clauseCount - nextCount }, (_, offset) => nextCount + offset)
           .some(index => clauseHasEdits(index));
+        const removedConnectorEdited = Array.from({ length: Math.max(0, connectingDevices.length - Math.max(0, nextCount - 1)) }, (_, offset) => Math.max(0, nextCount - 1) + offset)
+          .some(index => connectorHasEdits(index));
+        const removedEdited = removedClauseEdited || removedConnectorEdited;
         if (removedEdited) {
           const confirmed = window.confirm(`若繼續，系統只會保留前 ${nextCount} 個子句容器，後面的已編輯內容都會被移除。要繼續嗎？`);
           if (!confirmed) {
@@ -1236,6 +1444,10 @@
     });
     reviewBackBtn.addEventListener('click', hideReviewModal);
     reviewConfirmBtn.addEventListener('click', () => {
+      translationInput.value = sentenceStructureInput.value.trim();
+      floatingEditor.dataset.expanded = 'true';
+      document.body.classList.remove('editor-collapsed');
+      toggleEditorBtn.textContent = '收合編輯器';
       reviewModalShown = true;
       structureCollapsed = true;
       hideReviewModal();
