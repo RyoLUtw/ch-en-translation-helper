@@ -8,20 +8,27 @@
     :root {
       --bg: #f5f7fb;
       --panel: #ffffff;
+      --panel-soft: #fafbff;
       --text: #1f2937;
       --muted: #6b7280;
       --border: #d1d5db;
       --accent: #2563eb;
+      --accent-strong: #1d4ed8;
       --subject: #dbeafe;
       --verb: #fee2e2;
       --object: #dcfce7;
       --modifier: #fef3c7;
       --selection: #c7d2fe;
+      --selection-anchor: #fde68a;
       --tab: #eef2ff;
-      --shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --editor-height-collapsed: 112px;
+      --editor-height-expanded: 300px;
+      --editor-height: var(--editor-height-expanded);
     }
 
     * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
 
     body {
       margin: 0;
@@ -30,10 +37,14 @@
       color: var(--text);
     }
 
+    body.editor-collapsed {
+      --editor-height: var(--editor-height-collapsed);
+    }
+
     .app {
       max-width: 1180px;
       margin: 0 auto;
-      padding: 24px;
+      padding: 24px 24px calc(var(--editor-height) + 40px);
       display: grid;
       gap: 20px;
     }
@@ -41,39 +52,42 @@
     .card {
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 18px;
       padding: 20px;
       box-shadow: var(--shadow);
     }
 
-    h1, h2, h3 {
-      margin: 0 0 12px 0;
-    }
+    h1, h2, h3, h4, p { margin-top: 0; }
 
     .muted {
       color: var(--muted);
-      line-height: 1.6;
+      line-height: 1.65;
     }
 
     textarea {
       width: 100%;
-      min-height: 110px;
+      min-height: 120px;
       resize: vertical;
       padding: 14px;
-      border-radius: 12px;
+      border-radius: 14px;
       border: 1px solid var(--border);
       font-size: 18px;
       line-height: 1.7;
       font-family: inherit;
+      background: #fff;
     }
 
     .top-controls,
-    .tab-row,
-    .step-actions {
+    .step-actions,
+    .floating-editor-actions,
+    .clause-actions,
+    .page-actions,
+    .inline-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       margin-top: 14px;
+      align-items: center;
     }
 
     button {
@@ -85,12 +99,13 @@
       cursor: pointer;
       font-size: 15px;
       font-family: inherit;
-      transition: 0.15s ease;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
     }
 
     button:hover {
       transform: translateY(-1px);
       border-color: #9ca3af;
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.08);
     }
 
     button.primary {
@@ -99,39 +114,85 @@
       border-color: var(--accent);
     }
 
-    .tab-btn {
-      background: var(--tab);
+    button.primary:hover {
+      background: var(--accent-strong);
+      border-color: var(--accent-strong);
     }
 
-    .tab-btn.active {
-      background: var(--accent);
-      color: white;
-      border-color: var(--accent);
+    button:disabled {
+      cursor: not-allowed;
+      background: #e5e7eb;
+      color: #9ca3af;
+      border-color: #d1d5db;
+      box-shadow: none;
+      transform: none;
     }
 
-    .workspace {
-      display: block;
+    button.active-toggle {
+      background: #eff6ff;
+      border-color: #93c5fd;
+      color: var(--accent-strong);
+      box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
     }
 
-    .step-panel {
+    .workspace,
+    .step-panel,
+    .structure-panel {
       display: grid;
-      gap: 14px;
+      gap: 16px;
     }
 
     .step-meta,
-    .status {
-      padding: 14px;
+    .status,
+    .hint-box,
+    .slider-box,
+    .warning-box {
+      padding: 14px 16px;
       border-radius: 14px;
       border: 1px solid var(--border);
-      background: #fafbff;
+      background: var(--panel-soft);
       line-height: 1.7;
     }
 
+    .warning-box {
+      background: #fff7ed;
+      border-color: #fdba74;
+    }
+
+    .hidden { display: none !important; }
+
+    .slider-box {
+      display: grid;
+      gap: 12px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .slider-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .clause-grid,
     .role-grid {
       display: grid;
       gap: 14px;
     }
 
+    .clause-box,
+    .connector-box,
     .role-box {
       border: 1px solid var(--border);
       border-radius: 16px;
@@ -139,24 +200,37 @@
       background: white;
     }
 
+    .clause-box.confirmed,
+    .connector-box.confirmed,
+    .role-box.confirmed {
+      background: #f8fbff;
+      border-color: #93c5fd;
+    }
+
+    .clause-box-header,
     .role-box-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 12px;
       margin-bottom: 12px;
+      flex-wrap: wrap;
     }
 
-    .role-title {
+    .role-title,
+    .clause-title {
       font-weight: 700;
+      font-size: 18px;
     }
 
-    .role-chip {
+    .role-chip,
+    .clause-chip {
       display: inline-block;
       font-size: 13px;
       padding: 4px 10px;
       border-radius: 999px;
       border: 1px solid var(--border);
+      background: #fff;
     }
 
     .chip-modifier { background: var(--modifier); }
@@ -185,7 +259,7 @@
       user-select: none;
       font-size: 20px;
       line-height: 1.2;
-      transition: 0.15s ease;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
     }
 
     .role-token:hover {
@@ -198,6 +272,11 @@
       border-color: #6366f1;
     }
 
+    .role-token.quick-anchor {
+      background: var(--selection-anchor);
+      border-color: #f59e0b;
+    }
+
     .small-btn {
       padding: 8px 10px;
       font-size: 13px;
@@ -208,9 +287,210 @@
       font-style: italic;
     }
 
+    .tab-card { overflow: hidden; }
+    .tab-scroll-wrap { position: relative; }
+
+    .tab-scroll {
+      display: flex;
+      gap: 20px;
+      overflow-x: auto;
+      padding: 8px 10px 16px;
+      scroll-snap-type: x mandatory;
+      scroll-padding-inline: 20px;
+      scrollbar-width: thin;
+    }
+
+    .tab-scroll::-webkit-scrollbar { height: 10px; }
+    .tab-scroll::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 999px;
+    }
+
+    .clause-tab-group {
+      flex: 0 0 min(100%, 480px);
+      scroll-snap-align: center;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      justify-items: center;
+      transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .clause-tab-group.active {
+      border-color: #93c5fd;
+      box-shadow: 0 12px 28px rgba(37, 99, 235, 0.12);
+      transform: translateY(-4px);
+    }
+
+    .clause-tab-label {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .clause-tab-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: nowrap;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .tab-btn {
+      min-width: 74px;
+      background: var(--tab);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tab-btn span {
+      display: inline-block;
+      transition: transform 0.22s ease;
+    }
+
+    .tab-btn:hover span,
+    .tab-btn.active span {
+      transform: translateY(-2px);
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+      animation: rollActive 0.28s ease;
+    }
+
+    @keyframes rollActive {
+      0% { transform: translateY(8px) rotateX(-35deg); opacity: 0.4; }
+      100% { transform: translateY(0) rotateX(0deg); opacity: 1; }
+    }
+
+    .floating-editor {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      transform: translateX(-50%);
+      width: min(1180px, calc(100vw - 16px));
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(209, 213, 219, 0.95);
+      border-bottom: none;
+      border-radius: 22px 22px 0 0;
+      box-shadow: 0 -18px 40px rgba(15, 23, 42, 0.12);
+      padding: 14px 16px 16px;
+      z-index: 40;
+    }
+
+    .floating-editor[data-expanded="false"] textarea {
+      min-height: 0;
+      height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      border-width: 0;
+      opacity: 0;
+      pointer-events: none;
+      margin: 0;
+    }
+
+    .floating-editor[data-expanded="false"] .floating-editor-actions {
+      display: none;
+    }
+
+    .floating-editor-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .floating-editor-title {
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .editor-toggle { border-radius: 999px; }
+
+    .floating-editor textarea {
+      transition: height 0.22s ease, opacity 0.22s ease, padding 0.22s ease, border-width 0.22s ease;
+      margin-bottom: 0;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 100;
+    }
+
+    .modal {
+      width: min(760px, 100%);
+      background: #fff;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .review-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .review-item {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: var(--panel-soft);
+    }
+
+    .review-token-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .review-token {
+      padding: 10px 14px;
+      border: 2px solid #111827;
+      background: white;
+      color: #111827;
+      font-weight: 700;
+    }
+
+    .review-token.clause {
+      border-radius: 4px;
+    }
+
+    .review-token.connector {
+      border-radius: 999px;
+      background: #111827;
+      color: white;
+    }
+
     @media (max-width: 900px) {
       .app {
-        padding: 16px;
+        padding: 16px 16px calc(var(--editor-height) + 24px);
+      }
+
+      .clause-tab-group {
+        flex-basis: 92%;
+      }
+
+      .clause-tab-buttons {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 4px;
       }
     }
   </style>
@@ -220,17 +500,57 @@
     <section class="card">
       <h1>中文句子分析工具 POC</h1>
       <p class="muted">
-        先輸入一句中文，按下「切成字詞」。每個角色區塊一開始都會顯示全部字詞，但預設都不選取。直接點擊字詞可選取或取消選取，再按「確認」移除未選取的字詞，留下該角色的內容。
+        先在上方輸入要分析的中文句子並切詞，再用「辨認句子結構」分出子句／心理意象。底部浮動編輯器則保留給學生撰寫英文翻譯，不會影響句子分析內容。
       </p>
-      <textarea id="sentenceInput">小明昨天在公園裡開心地踢足球。</textarea>
-      <div class="top-controls">
-        <button id="tokenizeBtn" class="primary">切成字詞</button>
-        <button id="resetAllBtn">清除全部內容</button>
+      <textarea id="sentenceInput">小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。</textarea>
+      <div class="page-actions">
+        <button id="tokenizeBtn" class="primary">切成字詞並重建分析</button>
+        <button id="resetSentenceBtn">重設句子</button>
+      </div>
+      <div class="hint-box">
+        目前分析使用的句子：<strong id="sentencePreview"></strong>
       </div>
     </section>
 
-    <section class="card">
-      <div id="tabRow" class="tab-row"></div>
+    <section id="structureSection" class="card structure-panel">
+      <div class="clause-box-header">
+        <div>
+        <h2>1. 辨認句子結構</h2>
+      <div class="step-meta">
+          先判斷這個句子有幾個子句（mental images），再逐一在每個子句容器中圈選屬於該子句的字詞。每兩個相鄰子句之間，也要標記連接兩者的連接裝置。按下「確認」後，會套用和詞性分析相同的邏輯：移除未選取字詞，只保留該區內容。
+        </div>
+        </div>
+      <div class="inline-actions">
+          <button id="toggleStructureBtn" class="small-btn hidden">展開步驟 1</button>
+        </div>
+      </div>
+
+      <div id="structureCollapsedSummary" class="review-item hidden"></div>
+
+      <div id="structureBody">
+      <p id="structureOriginalSentence" class="muted"></p>
+      <div class="slider-box">
+        <div class="slider-header">
+          <div>
+            <strong>子句數量</strong>
+            <div class="muted">拖曳滑桿選擇 1–6 個子句。調整數量時會保留現有選取內容；若縮減到較少子句，會在需要時先詢問是否刪除尾端子句。</div>
+          </div>
+          <div class="slider-value" id="clauseCountValue">2</div>
+        </div>
+        <input id="clauseCountSlider" type="range" min="1" max="6" step="1" value="2" />
+      </div>
+      <div id="clauseGrid" class="clause-grid"></div>
+      </div>
+    </section>
+
+    <section class="card tab-card">
+      <div>
+        <h2>2. 子句角色分析</h2>
+        <p class="muted">左右滑動切換子句；點選按鈕切換該子句中的角色分析。捲動會自動吸附到下一個子句，並同步更新下方顯示的字詞。</p>
+      </div>
+      <div class="tab-scroll-wrap">
+        <div id="tabScroll" class="tab-scroll"></div>
+      </div>
     </section>
 
     <section class="workspace">
@@ -240,19 +560,97 @@
     </section>
   </div>
 
+  <section id="floatingEditor" class="floating-editor" data-expanded="true">
+    <div class="floating-editor-header">
+      <div>
+        <div class="floating-editor-title">英文翻譯浮動編輯器</div>
+        <div class="muted">固定在視窗底部，可向上展開／收合，供學生撰寫英文翻譯草稿。</div>
+      </div>
+      <button id="toggleEditorBtn" class="editor-toggle">收合編輯器</button>
+    </div>
+    <textarea id="translationInput" placeholder="Write the English translation here..."></textarea>
+    <div class="floating-editor-actions">
+      <button id="clearTranslationBtn">清空翻譯</button>
+    </div>
+  </section>
+
+  <div id="reviewModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div>
+        <h3>確認子句辨認結果</h3>
+        <p class="muted">以下是目前各子句與連接裝置的整理結果。請先寫出整句大結構，使用 <code>...</code> 作為子句占位符，例如：<code>..., but ...</code>。按下「下一步(翻譯子句)」後，內容會自動帶入底部的英文翻譯編輯器。</p>
+      </div>
+      <div id="reviewList" class="review-list"></div>
+      <div class="review-item">
+        <label for="sentenceStructureInput"><strong>整句大結構</strong></label>
+        <input id="sentenceStructureInput" type="text" style="width: 100%; margin-top: 10px; padding: 12px 14px; border-radius: 12px; border: 1px solid #d1d5db; font: inherit;" placeholder="例如：..., but ..." />
+      </div>
+      <div class="inline-actions">
+        <button id="reviewBackBtn">返回修改</button>
+        <button id="reviewConfirmBtn" class="primary">下一步(翻譯子句)</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="subjectModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div>
+        <h3>無主詞可選</h3>
+        <p class="muted">請檢查原始中文句子，並在目前子句中補回省略主詞後再進行主詞分析。</p>
+      </div>
+      <div class="review-item">
+        <strong>原始中文句子</strong>
+        <p id="subjectModalSentence" style="margin: 10px 0 0 0;"></p>
+      </div>
+      <div class="review-item">
+        <label for="subjectClauseInput"><strong>目前子句（可編輯）</strong></label>
+        <textarea id="subjectClauseInput" style="margin-top: 10px;"></textarea>
+      </div>
+      <div class="inline-actions">
+        <button id="subjectModalCancelBtn">取消</button>
+        <button id="subjectModalApplyBtn" class="primary">更新主詞分析字詞</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const sentenceInput = document.getElementById('sentenceInput');
     const tokenizeBtn = document.getElementById('tokenizeBtn');
-    const resetAllBtn = document.getElementById('resetAllBtn');
-    const tabRow = document.getElementById('tabRow');
+    const resetSentenceBtn = document.getElementById('resetSentenceBtn');
     const stepPanel = document.getElementById('stepPanel');
+    const sentencePreview = document.getElementById('sentencePreview');
+    const clauseCountSlider = document.getElementById('clauseCountSlider');
+    const clauseCountValue = document.getElementById('clauseCountValue');
+    const clauseGrid = document.getElementById('clauseGrid');
+    const structureOriginalSentence = document.getElementById('structureOriginalSentence');
+    const structureBody = document.getElementById('structureBody');
+    const structureCollapsedSummary = document.getElementById('structureCollapsedSummary');
+    const structureSection = document.getElementById('structureSection');
+    const tabScroll = document.getElementById('tabScroll');
+    const floatingEditor = document.getElementById('floatingEditor');
+    const toggleEditorBtn = document.getElementById('toggleEditorBtn');
+    const toggleStructureBtn = document.getElementById('toggleStructureBtn');
+    const translationInput = document.getElementById('translationInput');
+    const clearTranslationBtn = document.getElementById('clearTranslationBtn');
+    const reviewModal = document.getElementById('reviewModal');
+    const reviewList = document.getElementById('reviewList');
+    const reviewBackBtn = document.getElementById('reviewBackBtn');
+    const reviewConfirmBtn = document.getElementById('reviewConfirmBtn');
+    const sentenceStructureInput = document.getElementById('sentenceStructureInput');
+    const subjectModal = document.getElementById('subjectModal');
+    const subjectModalSentence = document.getElementById('subjectModalSentence');
+    const subjectClauseInput = document.getElementById('subjectClauseInput');
+    const subjectModalCancelBtn = document.getElementById('subjectModalCancelBtn');
+    const subjectModalApplyBtn = document.getElementById('subjectModalApplyBtn');
 
-    const steps = [
+    const defaultSentence = '小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。';
+
+    const roleSteps = [
       {
         id: 'subject',
-        label: '1. Subject',
+        shortLabel: 'S',
         title: '主詞分析',
-        description: '先找主詞相關成分。主詞修飾詞與主詞都先顯示全部字詞，且預設不選取，請在各區直接點選要保留的字詞。',
+        description: '請針對目前選取子句的字詞，找出主詞修飾詞與主詞。',
         roles: [
           { id: 'modSub', label: '主詞修飾詞', chipClass: 'chip-modifier' },
           { id: 'subjectCore', label: '主詞', chipClass: 'chip-subject' }
@@ -260,9 +658,9 @@
       },
       {
         id: 'verb',
-        label: '2. Verb',
+        shortLabel: 'V',
         title: '動詞分析',
-        description: '再找動詞相關成分。動詞修飾詞與動詞都先顯示全部字詞，且預設不選取，請在各區直接點選要保留的字詞。',
+        description: '請針對目前選取子句的字詞，找出動詞修飾詞與動詞。',
         roles: [
           { id: 'modVerb', label: '動詞修飾詞', chipClass: 'chip-modifier' },
           { id: 'verbCore', label: '動詞', chipClass: 'chip-verb' }
@@ -270,9 +668,9 @@
       },
       {
         id: 'object',
-        label: '3. Object',
+        shortLabel: 'O',
         title: '受詞分析',
-        description: '接著找受詞相關成分。受詞修飾詞與受詞都先顯示全部字詞，且預設不選取，請在各區直接點選要保留的字詞。',
+        description: '請針對目前選取子句的字詞，找出受詞修飾詞與受詞。',
         roles: [
           { id: 'modObj', label: '受詞修飾詞', chipClass: 'chip-modifier' },
           { id: 'objectCore', label: '受詞', chipClass: 'chip-object' }
@@ -280,31 +678,34 @@
       },
       {
         id: 'clauseModifier',
-        label: '4. Clause Modifier',
+        shortLabel: 'CM',
         title: '子句修飾詞分析',
-        description: '最後處理修飾整個子句的內容。子句修飾詞先顯示全部字詞，且預設不選取，請直接點選要保留的字詞。',
+        description: '請找出修飾整個子句的內容。',
         roles: [
-          { id: 'modClause', label: '子句修飾詞', chipClass: 'chip-modifier' }
+          { id: 'modManner', label: '方式修飾詞', chipClass: 'chip-modifier' },
+          { id: 'modPlace', label: '地方修飾詞', chipClass: 'chip-modifier' },
+          { id: 'modTime', label: '時間修飾詞', chipClass: 'chip-modifier' }
         ]
       }
     ];
 
     let tokens = [];
-    let activeStepIndex = 0;
-    let assignments = createEmptyAssignments();
-
-    function createEmptyAssignments() {
-      const store = {};
-      steps.forEach(step => {
-        step.roles.forEach(role => {
-          store[role.id] = {
-            selected: [],
-            confirmed: false
-          };
-        });
-      });
-      return store;
-    }
+    let clauseCount = Number(clauseCountSlider.value);
+    let activeClauseIndex = 0;
+    let activeRoleIndex = 0;
+    let clauseSelections = [];
+    let connectingDevices = [];
+    let clauseTextOverrides = [];
+    let assignments = [];
+    let scrollTimer = null;
+    let pendingClauseCount = clauseCount;
+    let structureCollapsed = false;
+    let reviewModalShown = false;
+    const quickSelectionState = {
+      clause: {},
+      connector: {},
+      role: {}
+    };
 
     function tokenizeChinese(text) {
       return text
@@ -316,190 +717,828 @@
           if (/\s/.test(part)) return [];
           return [...part];
         })
-        .map((text, index) => ({ id: index, text }));
+        .map((part, index) => ({ id: index, text: part }));
     }
 
-    function createDefaultSelection() {
-      return [];
+    function createDefaultClauseState(index) {
+      return {
+        clauseIndex: index,
+        selected: [],
+        confirmed: false,
+        quickSelectionEnabled: true
+      };
     }
 
-    function initializeSelections() {
-      steps.forEach(step => {
+    function createRoleState() {
+      const store = {};
+      roleSteps.forEach(step => {
         step.roles.forEach(role => {
-          assignments[role.id] = {
-            selected: createDefaultSelection(),
-            confirmed: false
+          store[role.id] = {
+            selected: [],
+            confirmed: false,
+            quickSelectionEnabled: false
           };
         });
+      });
+      return store;
+    }
+
+    function createDefaultConnectorState(index) {
+      return {
+        connectorIndex: index,
+        selected: [],
+        confirmed: false,
+        quickSelectionEnabled: false
+      };
+    }
+
+    function initializeClauseData(count) {
+      clauseSelections = Array.from({ length: count }, (_, index) => createDefaultClauseState(index));
+      connectingDevices = Array.from({ length: Math.max(0, count - 1) }, (_, index) => createDefaultConnectorState(index));
+      clauseTextOverrides = Array.from({ length: count }, () => '');
+      assignments = Array.from({ length: count }, () => createRoleState());
+      activeClauseIndex = Math.min(activeClauseIndex, Math.max(0, count - 1));
+      activeRoleIndex = Math.min(activeRoleIndex, roleSteps.length - 1);
+    }
+
+    function normalizeStateAfterResize(nextCount) {
+      clauseSelections = clauseSelections.slice(0, nextCount);
+      connectingDevices = connectingDevices.slice(0, Math.max(0, nextCount - 1));
+      clauseTextOverrides = clauseTextOverrides.slice(0, nextCount);
+      assignments = assignments.slice(0, nextCount);
+
+      while (clauseSelections.length < nextCount) {
+        clauseSelections.push(createDefaultClauseState(clauseSelections.length));
+      }
+      while (assignments.length < nextCount) {
+        assignments.push(createRoleState());
+      }
+      while (connectingDevices.length < Math.max(0, nextCount - 1)) {
+        connectingDevices.push(createDefaultConnectorState(connectingDevices.length));
+      }
+      while (clauseTextOverrides.length < nextCount) {
+        clauseTextOverrides.push('');
+      }
+
+      clauseSelections.forEach((state, index) => {
+        state.clauseIndex = index;
+        state.quickSelectionEnabled = Boolean(state.quickSelectionEnabled);
+      });
+      connectingDevices.forEach((state, index) => {
+        state.connectorIndex = index;
+        state.quickSelectionEnabled = Boolean(state.quickSelectionEnabled);
+      });
+
+      activeClauseIndex = Math.min(activeClauseIndex, Math.max(0, nextCount - 1));
+      clearInvalidQuickAnchors();
+    }
+
+    function getClauseTokenIds(clauseIndex) {
+      const clauseState = clauseSelections[clauseIndex];
+      if (!clauseState) return [];
+      if (clauseState.confirmed) return [...clauseState.selected];
+      if (clauseState.selected.length) return [...clauseState.selected];
+      return tokens.map(token => token.id);
+    }
+
+    function getClauseTokens(clauseIndex) {
+      const clauseTokenIds = new Set(getClauseTokenIds(clauseIndex));
+      return tokens.filter(token => clauseTokenIds.has(token.id));
+    }
+
+    function getRoleState(clauseIndex, roleId) {
+      return assignments[clauseIndex]?.[roleId];
+    }
+
+    function getClauseAnalysisTokens(clauseIndex) {
+      const overrideText = clauseTextOverrides[clauseIndex]?.trim();
+      if (overrideText) {
+        return tokenizeChinese(overrideText).map((token, index) => ({ id: index, text: token.text }));
+      }
+      return getClauseTokens(clauseIndex);
+    }
+
+    function getConnectorState(connectorIndex) {
+      return connectingDevices[connectorIndex];
+    }
+
+    function allStructureConfirmed() {
+      const clausesReady = clauseSelections.length > 0 && clauseSelections.every(state => state.confirmed);
+      const connectorsReady = connectingDevices.every(state => state.confirmed);
+      return clausesReady && connectorsReady;
+    }
+
+    function areCurrentStepRolesConfirmed() {
+      const step = roleSteps[activeRoleIndex];
+      return step.roles.every(role => getRoleState(activeClauseIndex, role.id)?.confirmed);
+    }
+
+    function isCurrentClauseFullyConfirmed() {
+      return roleSteps.every(step => step.roles.every(role => getRoleState(activeClauseIndex, role.id)?.confirmed));
+    }
+
+    function getClauseReviewText(clauseIndex) {
+      return getClauseTokens(clauseIndex).map(token => token.text).join('');
+    }
+
+    function getConnectorReviewText(connectorIndex) {
+      const connectorState = getConnectorState(connectorIndex);
+      if (!connectorState) return '';
+      const ids = connectorState.confirmed || connectorState.selected.length
+        ? connectorState.selected
+        : tokens.map(token => token.id);
+      const set = new Set(ids);
+      return tokens.filter(token => set.has(token.id)).map(token => token.text).join('');
+    }
+
+    function renderReviewModal() {
+      const sequence = [];
+      clauseSelections.forEach((_, index) => {
+        sequence.push(`<div class="review-token clause">${getClauseReviewText(index) || '（空）'}</div>`);
+        if (index < connectingDevices.length) {
+          sequence.push(`<div class="review-token connector">${getConnectorReviewText(index) || '（無連接裝置）'}</div>`);
+        }
+      });
+      reviewList.innerHTML = `
+        <div class="review-item">
+          <strong>分析結果</strong>
+          <div class="review-token-row" style="margin-top: 10px;">${sequence.join('')}</div>
+        </div>
+      `;
+    }
+
+    function renderCollapsedStructureSummary() {
+      const sequence = [];
+      clauseSelections.forEach((_, index) => {
+        sequence.push(`<div class="review-token clause">${getClauseReviewText(index) || '（空）'}</div>`);
+        if (index < connectingDevices.length) {
+          sequence.push(`<div class="review-token connector">${getConnectorReviewText(index) || '（無連接裝置）'}</div>`);
+        }
+      });
+      structureCollapsedSummary.innerHTML = `
+        <strong>辨認句子結構分析結果</strong>
+        <div class="review-token-row" style="margin-top: 10px;">${sequence.join('')}</div>
+      `;
+    }
+
+    function showReviewModal() {
+      renderReviewModal();
+      if (!sentenceStructureInput.value.trim()) {
+        sentenceStructureInput.value = translationInput.value.trim();
+      }
+      updateReviewConfirmButtonState();
+      reviewModal.classList.remove('hidden');
+    }
+
+    function hideReviewModal() {
+      reviewModal.classList.add('hidden');
+    }
+
+    function updateReviewConfirmButtonState() {
+      reviewConfirmBtn.disabled = !sentenceStructureInput.value.trim();
+    }
+
+    function updateStructureVisibility() {
+      structureBody.classList.toggle('hidden', structureCollapsed);
+      toggleStructureBtn.classList.toggle('hidden', !structureCollapsed);
+      toggleStructureBtn.textContent = structureCollapsed ? '展開步驟 1' : '收合步驟 1';
+      structureCollapsedSummary.classList.toggle('hidden', !structureCollapsed);
+      if (structureCollapsed) renderCollapsedStructureSummary();
+    }
+
+    function updateSentencePreview() {
+      const text = sentenceInput.value.trim();
+      sentencePreview.textContent = text || '（尚未輸入句子）';
+      structureOriginalSentence.textContent = text ? `原始句子：${text}` : '原始句子：（尚未輸入句子）';
+    }
+
+    function openSubjectModal() {
+      subjectModalSentence.textContent = sentenceInput.value.trim() || '（尚未輸入句子）';
+      subjectClauseInput.value = clauseTextOverrides[activeClauseIndex]?.trim() || getClauseReviewText(activeClauseIndex);
+      subjectModal.classList.remove('hidden');
+    }
+
+    function hideSubjectModal() {
+      subjectModal.classList.add('hidden');
+    }
+
+    function getQuickAnchorKey(kind, clauseIndex, roleId = '') {
+      if (kind === 'clause') return `clause-${clauseIndex}`;
+      if (kind === 'connector') return `connector-${clauseIndex}`;
+      return `role-${clauseIndex}-${roleId}`;
+    }
+
+    function clearInvalidQuickAnchors() {
+      Object.keys(quickSelectionState.clause).forEach(key => {
+        const match = key.match(/^clause-(\d+)$/);
+        if (match && Number(match[1]) >= clauseCount) delete quickSelectionState.clause[key];
+      });
+      Object.keys(quickSelectionState.connector).forEach(key => {
+        const match = key.match(/^connector-(\d+)$/);
+        if (match && Number(match[1]) >= connectingDevices.length) delete quickSelectionState.connector[key];
+      });
+
+      Object.keys(quickSelectionState.role).forEach(key => {
+        const match = key.match(/^role-(\d+)-(.+)$/);
+        if (match && Number(match[1]) >= clauseCount) delete quickSelectionState.role[key];
+      });
+    }
+
+    function toggleQuickSelection(kind, clauseIndex, roleId = '') {
+      if (kind === 'clause') {
+        const clauseState = clauseSelections[clauseIndex];
+        clauseState.quickSelectionEnabled = !clauseState.quickSelectionEnabled;
+        if (!clauseState.quickSelectionEnabled) delete quickSelectionState.clause[getQuickAnchorKey(kind, clauseIndex)];
+        renderClauseGrid();
+        return;
+      }
+      if (kind === 'connector') {
+        const connectorState = getConnectorState(clauseIndex);
+        connectorState.quickSelectionEnabled = !connectorState.quickSelectionEnabled;
+        if (!connectorState.quickSelectionEnabled) delete quickSelectionState.connector[getQuickAnchorKey(kind, clauseIndex)];
+        renderClauseGrid();
+        return;
+      }
+
+      const roleState = getRoleState(clauseIndex, roleId);
+      roleState.quickSelectionEnabled = !roleState.quickSelectionEnabled;
+      if (!roleState.quickSelectionEnabled) delete quickSelectionState.role[getQuickAnchorKey(kind, clauseIndex, roleId)];
+      renderStepPanel();
+    }
+
+    function getClauseWarningMarkup() {
+      const trimmedCount = Math.max(0, clauseSelections.length - clauseCount);
+      if (!trimmedCount) return '';
+      return `<div class="warning-box">提醒：若把子句數量調小，系統只會保留前 ${clauseCount} 個子句；後面的子句資料會被移除。</div>`;
+    }
+
+    function renderClauseTokens(clauseIndex) {
+      if (!tokens.length) return '<div class="placeholder">請先切成字詞。</div>';
+
+      const state = clauseSelections[clauseIndex];
+      const selectedSet = new Set(state.selected);
+      const visibleTokens = state.confirmed ? tokens.filter(token => selectedSet.has(token.id)) : tokens;
+      const anchorId = quickSelectionState.clause[getQuickAnchorKey('clause', clauseIndex)];
+
+      if (!visibleTokens.length) return '<div class="placeholder">目前沒有保留任何字詞。</div>';
+
+      return visibleTokens.map(token => `
+        <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''} ${anchorId === token.id ? 'quick-anchor' : ''}" data-clause-token="${token.id}" data-clause-index="${clauseIndex}">${token.text}</button>
+      `).join('');
+    }
+
+    function renderConnectorTokens(connectorIndex) {
+      if (!tokens.length) return '<div class="placeholder">請先切成字詞。</div>';
+
+      const state = getConnectorState(connectorIndex);
+      const selectedSet = new Set(state.selected);
+      const visibleTokens = state.confirmed ? tokens.filter(token => selectedSet.has(token.id)) : tokens;
+      const anchorId = quickSelectionState.connector[getQuickAnchorKey('connector', connectorIndex)];
+
+      if (!visibleTokens.length) return '<div class="placeholder">目前沒有保留任何字詞。</div>';
+
+      return visibleTokens.map(token => `
+        <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''} ${anchorId === token.id ? 'quick-anchor' : ''}" data-connector-token="${token.id}" data-connector-index="${connectorIndex}">${token.text}</button>
+      `).join('');
+    }
+
+    function renderClauseGrid() {
+      const items = [];
+      clauseSelections.forEach((state, index) => {
+        items.push(`
+        <div class="clause-box ${state.confirmed ? 'confirmed' : ''}">
+          <div class="clause-box-header">
+            <div>
+              <div class="clause-title">Clause ${index + 1}</div>
+              <div class="clause-chip">辨認句子結構</div>
+            </div>
+            <div class="clause-actions">
+              <button class="small-btn ${state.quickSelectionEnabled ? 'active-toggle' : ''}" data-quick-clause="${index}">${state.quickSelectionEnabled ? '快速選取：開' : '快速選取：關'}</button>
+              <button class="small-btn" data-reset-clause="${index}">重設子句</button>
+              <button class="small-btn primary" data-confirm-clause="${index}">確認子句</button>
+            </div>
+          </div>
+          <div class="token-field">${renderClauseTokens(index)}</div>
+          <div class="muted" style="margin-top: 8px;">
+            ${state.quickSelectionEnabled ? '快速選取模式已開啟：先點起點，再點終點，可一次選取中間所有字詞。' : ''}
+            ${state.confirmed ? '已確認，只顯示保留字詞。' : '尚未確認，目前顯示整句所有字詞，可點選屬於此子句的內容。'}
+          </div>
+        </div>`);
+
+        if (index < connectingDevices.length) {
+          const connectorState = getConnectorState(index);
+          items.push(`
+          <div class="connector-box ${connectorState.confirmed ? 'confirmed' : ''}">
+            <div class="clause-box-header">
+              <div>
+                <div class="clause-title">Clause ${index + 1} ↔ Clause ${index + 2}</div>
+                <div class="clause-chip">連接裝置</div>
+              </div>
+              <div class="clause-actions">
+                <button class="small-btn ${connectorState.quickSelectionEnabled ? 'active-toggle' : ''}" data-quick-connector="${index}">${connectorState.quickSelectionEnabled ? '快速選取：開' : '快速選取：關'}</button>
+                <button class="small-btn" data-reset-connector="${index}">重設連接裝置</button>
+                <button class="small-btn primary" data-confirm-connector="${index}">確認連接裝置</button>
+              </div>
+            </div>
+            <div class="token-field">${renderConnectorTokens(index)}</div>
+            <div class="muted" style="margin-top: 8px;">
+              ${connectorState.quickSelectionEnabled ? '快速選取模式已開啟：先點起點，再點終點，可一次選取中間所有字詞。' : ''}
+              ${connectorState.confirmed ? '已確認，只顯示保留字詞。' : '尚未確認，目前顯示整句所有字詞，請圈選連接這兩個子句的連接裝置。'}
+            </div>
+          </div>`);
+        }
+      });
+
+      clauseGrid.innerHTML = `${getClauseWarningMarkup()}${items.join('')}`;
+
+      clauseGrid.querySelectorAll('[data-clause-token]').forEach(btn => {
+        btn.addEventListener('click', () => handleClauseTokenClick(Number(btn.dataset.clauseIndex), Number(btn.dataset.clauseToken)));
+      });
+      clauseGrid.querySelectorAll('[data-connector-token]').forEach(btn => {
+        btn.addEventListener('click', () => handleConnectorTokenClick(Number(btn.dataset.connectorIndex), Number(btn.dataset.connectorToken)));
+      });
+      clauseGrid.querySelectorAll('[data-confirm-clause]').forEach(btn => {
+        btn.addEventListener('click', () => confirmClause(Number(btn.dataset.confirmClause)));
+      });
+      clauseGrid.querySelectorAll('[data-confirm-connector]').forEach(btn => {
+        btn.addEventListener('click', () => confirmConnector(Number(btn.dataset.confirmConnector)));
+      });
+      clauseGrid.querySelectorAll('[data-reset-clause]').forEach(btn => {
+        btn.addEventListener('click', () => resetClause(Number(btn.dataset.resetClause)));
+      });
+      clauseGrid.querySelectorAll('[data-reset-connector]').forEach(btn => {
+        btn.addEventListener('click', () => resetConnector(Number(btn.dataset.resetConnector)));
+      });
+      clauseGrid.querySelectorAll('[data-quick-clause]').forEach(btn => {
+        btn.addEventListener('click', () => toggleQuickSelection('clause', Number(btn.dataset.quickClause)));
+      });
+      clauseGrid.querySelectorAll('[data-quick-connector]').forEach(btn => {
+        btn.addEventListener('click', () => toggleQuickSelection('connector', Number(btn.dataset.quickConnector)));
       });
     }
 
     function renderTabs() {
-      tabRow.innerHTML = steps.map((step, index) => `
-        <button class="tab-btn ${index === activeStepIndex ? 'active' : ''}" data-step-index="${index}">${step.label}</button>
+      tabScroll.innerHTML = clauseSelections.map((_, clauseIndex) => `
+        <div class="clause-tab-group ${clauseIndex === activeClauseIndex ? 'active' : ''}" data-clause-group="${clauseIndex}">
+          <div class="clause-tab-label">Clause ${clauseIndex + 1}</div>
+          <div class="clause-tab-buttons">
+            ${roleSteps.map((step, roleIndex) => `
+              <button class="tab-btn ${clauseIndex === activeClauseIndex && roleIndex === activeRoleIndex ? 'active' : ''}" data-tab-clause="${clauseIndex}" data-tab-role="${roleIndex}">
+                <span>${step.shortLabel}</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
       `).join('');
 
-      tabRow.querySelectorAll('.tab-btn').forEach(btn => {
+      tabScroll.querySelectorAll('[data-tab-role]').forEach(btn => {
         btn.addEventListener('click', () => {
-          activeStepIndex = Number(btn.dataset.stepIndex);
+          activeClauseIndex = Number(btn.dataset.tabClause);
+          activeRoleIndex = Number(btn.dataset.tabRole);
           renderTabs();
           renderStepPanel();
+          scrollClauseTabIntoView(activeClauseIndex);
         });
       });
     }
 
-    function getStatusMarkup() {
-      if (!tokens.length) {
-        return '尚未切詞。';
-      }
+    function scrollClauseTabIntoView(clauseIndex) {
+      const group = tabScroll.querySelector(`[data-clause-group="${clauseIndex}"]`);
+      if (!group) return;
+      group.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
 
-      const step = steps[activeStepIndex];
-      return `目前步驟：<strong>${step.title}</strong>。請在各角色區塊中點選要保留的字詞；目前預設不選取任何字詞，再按確認。`;
+    function syncActiveClauseFromScroll() {
+      const groups = [...tabScroll.querySelectorAll('[data-clause-group]')];
+      if (!groups.length) return;
+
+      const containerRect = tabScroll.getBoundingClientRect();
+      const containerCenter = containerRect.left + containerRect.width / 2;
+      let nearestIndex = activeClauseIndex;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+
+      groups.forEach(group => {
+        const rect = group.getBoundingClientRect();
+        const center = rect.left + rect.width / 2;
+        const distance = Math.abs(center - containerCenter);
+        const groupIndex = Number(group.dataset.clauseGroup);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIndex = groupIndex;
+        }
+      });
+
+      if (nearestIndex !== activeClauseIndex) {
+        activeClauseIndex = nearestIndex;
+        renderTabs();
+        renderStepPanel();
+      }
     }
 
     function renderRoleTokens(roleId) {
-      if (!tokens.length) {
-        return '<div class="placeholder">請先輸入句子並切成字詞。</div>';
-      }
+      const clauseTokens = getClauseAnalysisTokens(activeClauseIndex);
+      if (!clauseTokens.length) return '<div class="placeholder">此子句目前沒有可分析的字詞。</div>';
 
-      const selectedSet = new Set(assignments[roleId].selected);
-      const confirmed = assignments[roleId].confirmed;
-      const visibleTokens = confirmed
-        ? tokens.filter(token => selectedSet.has(token.id))
-        : tokens;
+      const roleState = getRoleState(activeClauseIndex, roleId);
+      const selectedSet = new Set(roleState.selected);
+      const visibleTokens = roleState.confirmed ? clauseTokens.filter(token => selectedSet.has(token.id)) : clauseTokens;
+      const anchorId = quickSelectionState.role[getQuickAnchorKey('role', activeClauseIndex, roleId)];
 
-      if (!visibleTokens.length) {
-        return '<div class="placeholder">目前沒有保留任何字詞。</div>';
-      }
+      if (!visibleTokens.length) return '<div class="placeholder">目前沒有保留任何字詞。</div>';
 
       return visibleTokens.map(token => `
-        <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''}" data-role-id="${roleId}" data-token-id="${token.id}">${token.text}</button>
+        <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''} ${anchorId === token.id ? 'quick-anchor' : ''}" data-role-id="${roleId}" data-token-id="${token.id}">${token.text}</button>
       `).join('');
     }
 
     function renderStepPanel() {
-      const step = steps[activeStepIndex];
+      const step = roleSteps[activeRoleIndex];
+      const clauseTokens = getClauseAnalysisTokens(activeClauseIndex);
+      const currentStepConfirmed = areCurrentStepRolesConfirmed();
+      const onLastRole = activeRoleIndex === roleSteps.length - 1;
+      const canGoNextRole = currentStepConfirmed && !onLastRole;
+      const canGoNextClause = currentStepConfirmed && onLastRole && activeClauseIndex < clauseCount - 1;
+
       stepPanel.innerHTML = `
         <div>
-          <h2>${step.title}</h2>
+          <h2>Clause ${activeClauseIndex + 1}｜${step.title}</h2>
           <div class="step-meta">${step.description}</div>
         </div>
-        <div class="status">${getStatusMarkup()}</div>
+        <div class="hint-box">此區顯示的字詞來源為目前捲動選中的子句：<strong>${clauseTokens.map(token => token.text).join(' ') || '（無字詞）'}</strong></div>
         <div class="role-grid">
           ${step.roles.map(role => {
-            const state = assignments[role.id];
+            const state = getRoleState(activeClauseIndex, role.id);
             return `
-              <div class="role-box" data-role-id="${role.id}">
+              <div class="role-box ${state.confirmed ? 'confirmed' : ''}" data-role-id="${role.id}">
                 <div class="role-box-header">
                   <div>
                     <div class="role-title">${role.label}</div>
                     <div class="role-chip ${role.chipClass}">${role.label}</div>
                   </div>
-                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                  <div class="inline-actions">
+                    <button class="small-btn ${state.quickSelectionEnabled ? 'active-toggle' : ''}" data-quick-role="${role.id}">${state.quickSelectionEnabled ? '快速選取：開' : '快速選取：關'}</button>
                     <button class="small-btn" data-reset-role="${role.id}">重設此區</button>
+                    ${step.id === 'subject' && role.id === 'subjectCore' ? '<button class="small-btn" data-open-subject-modal="true">無主詞可選</button>' : ''}
                     <button class="small-btn primary" data-confirm-role="${role.id}">確認</button>
                   </div>
                 </div>
                 <div class="token-field">${renderRoleTokens(role.id)}</div>
                 <div class="muted" style="margin-top: 8px;">
-                  ${state.confirmed ? '已確認，只顯示保留字詞。' : '尚未確認，目前顯示全部字詞，且預設不選取。'}
+                  ${state.quickSelectionEnabled ? '快速選取模式已開啟：先點起點，再點終點，可一次選取中間所有字詞。' : ''}
+                  ${state.confirmed ? '已確認，只顯示保留字詞。' : '尚未確認，目前顯示此子句的所有字詞，且預設不選取。'}
                 </div>
               </div>
             `;
           }).join('')}
         </div>
         <div class="step-actions">
-          <button id="prevStepBtn">上一個步驟</button>
-          <button id="nextStepBtn" class="primary">下一個步驟</button>
+          <button id="prevStepBtn">上一個角色</button>
+          <button id="nextStepBtn" class="primary" ${canGoNextRole ? '' : 'disabled'}>下一個角色</button>
+          ${canGoNextClause ? '<button id="nextClauseBtn" class="primary">下一個子句</button>' : ''}
         </div>
       `;
 
       stepPanel.querySelectorAll('[data-token-id]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const roleId = btn.dataset.roleId;
-          const tokenId = Number(btn.dataset.tokenId);
-          toggleRoleToken(roleId, tokenId);
-        });
+        btn.addEventListener('click', () => handleRoleTokenClick(btn.dataset.roleId, Number(btn.dataset.tokenId)));
       });
-
       stepPanel.querySelectorAll('[data-confirm-role]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          confirmRole(btn.dataset.confirmRole);
-        });
+        btn.addEventListener('click', () => confirmRole(btn.dataset.confirmRole));
       });
-
       stepPanel.querySelectorAll('[data-reset-role]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          resetRole(btn.dataset.resetRole);
-        });
+        btn.addEventListener('click', () => resetRole(btn.dataset.resetRole));
+      });
+      stepPanel.querySelectorAll('[data-quick-role]').forEach(btn => {
+        btn.addEventListener('click', () => toggleQuickSelection('role', activeClauseIndex, btn.dataset.quickRole));
+      });
+      stepPanel.querySelectorAll('[data-open-subject-modal]').forEach(btn => {
+        btn.addEventListener('click', openSubjectModal);
       });
 
       document.getElementById('prevStepBtn').addEventListener('click', () => {
-        activeStepIndex = Math.max(0, activeStepIndex - 1);
+        activeRoleIndex = Math.max(0, activeRoleIndex - 1);
         renderTabs();
         renderStepPanel();
       });
 
-      document.getElementById('nextStepBtn').addEventListener('click', () => {
-        activeStepIndex = Math.min(steps.length - 1, activeStepIndex + 1);
-        renderTabs();
+      const nextStepBtn = document.getElementById('nextStepBtn');
+      if (!nextStepBtn.disabled) {
+        nextStepBtn.addEventListener('click', () => {
+          activeRoleIndex = Math.min(roleSteps.length - 1, activeRoleIndex + 1);
+          renderTabs();
+          renderStepPanel();
+        });
+      }
+
+      const nextClauseBtn = document.getElementById('nextClauseBtn');
+      if (nextClauseBtn) {
+        nextClauseBtn.addEventListener('click', () => {
+          activeClauseIndex = Math.min(clauseCount - 1, activeClauseIndex + 1);
+          activeRoleIndex = 0;
+          renderTabs();
+          renderStepPanel();
+          scrollClauseTabIntoView(activeClauseIndex);
+        });
+      }
+    }
+
+    function selectTokenRange(existingSelection, tokenSourceIds, startId, endId) {
+      const startIndex = tokenSourceIds.indexOf(startId);
+      const endIndex = tokenSourceIds.indexOf(endId);
+      if (startIndex === -1 || endIndex === -1) return existingSelection;
+      const [from, to] = startIndex <= endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+      const nextSet = new Set(existingSelection);
+      tokenSourceIds.slice(from, to + 1).forEach(id => nextSet.add(id));
+      return tokenSourceIds.filter(id => nextSet.has(id));
+    }
+
+    function handleClauseTokenClick(clauseIndex, tokenId) {
+      const state = clauseSelections[clauseIndex];
+      if (state.quickSelectionEnabled) {
+        const key = getQuickAnchorKey('clause', clauseIndex);
+        const currentAnchor = quickSelectionState.clause[key];
+        if (currentAnchor === undefined) {
+          quickSelectionState.clause[key] = tokenId;
+          renderClauseGrid();
+          return;
+        }
+        state.selected = selectTokenRange(state.selected, tokens.map(token => token.id), currentAnchor, tokenId);
+        delete quickSelectionState.clause[key];
+        state.confirmed = false;
+        reviewModalShown = false;
+        structureCollapsed = false;
+        renderClauseGrid();
         renderStepPanel();
-      });
+        return;
+      }
+      toggleClauseToken(clauseIndex, tokenId);
+    }
+
+    function handleConnectorTokenClick(connectorIndex, tokenId) {
+      const state = getConnectorState(connectorIndex);
+      if (state.quickSelectionEnabled) {
+        const key = getQuickAnchorKey('connector', connectorIndex);
+        const currentAnchor = quickSelectionState.connector[key];
+        if (currentAnchor === undefined) {
+          quickSelectionState.connector[key] = tokenId;
+          renderClauseGrid();
+          return;
+        }
+        state.selected = selectTokenRange(state.selected, tokens.map(token => token.id), currentAnchor, tokenId);
+        delete quickSelectionState.connector[key];
+        state.confirmed = false;
+        reviewModalShown = false;
+        structureCollapsed = false;
+        renderClauseGrid();
+        return;
+      }
+      toggleConnectorToken(connectorIndex, tokenId);
+    }
+
+    function toggleClauseToken(clauseIndex, tokenId) {
+      const state = clauseSelections[clauseIndex];
+      const set = new Set(state.selected);
+      if (set.has(tokenId)) set.delete(tokenId);
+      else set.add(tokenId);
+      state.selected = tokens.map(token => token.id).filter(id => set.has(id));
+      state.confirmed = false;
+      reviewModalShown = false;
+      structureCollapsed = false;
+      renderClauseGrid();
+      renderStepPanel();
+    }
+
+    function confirmClause(clauseIndex) {
+      clauseSelections[clauseIndex].confirmed = true;
+      renderClauseGrid();
+      renderTabs();
+      renderStepPanel();
+      if (allStructureConfirmed() && !reviewModalShown) {
+        showReviewModal();
+      }
+    }
+
+    function toggleConnectorToken(connectorIndex, tokenId) {
+      const state = getConnectorState(connectorIndex);
+      const set = new Set(state.selected);
+      if (set.has(tokenId)) set.delete(tokenId);
+      else set.add(tokenId);
+      state.selected = tokens.map(token => token.id).filter(id => set.has(id));
+      state.confirmed = false;
+      reviewModalShown = false;
+      structureCollapsed = false;
+      renderClauseGrid();
+    }
+
+    function confirmConnector(connectorIndex) {
+      getConnectorState(connectorIndex).confirmed = true;
+      renderClauseGrid();
+      if (allStructureConfirmed() && !reviewModalShown) {
+        showReviewModal();
+      }
+    }
+
+    function resetClause(clauseIndex) {
+      const quickState = clauseSelections[clauseIndex].quickSelectionEnabled;
+      clauseSelections[clauseIndex] = createDefaultClauseState(clauseIndex);
+      clauseSelections[clauseIndex].quickSelectionEnabled = quickState;
+      clauseTextOverrides[clauseIndex] = '';
+      assignments[clauseIndex] = createRoleState();
+      delete quickSelectionState.clause[getQuickAnchorKey('clause', clauseIndex)];
+      Object.keys(quickSelectionState.role)
+        .filter(key => key.startsWith(`role-${clauseIndex}-`))
+        .forEach(key => delete quickSelectionState.role[key]);
+      reviewModalShown = false;
+      structureCollapsed = false;
+      renderClauseGrid();
+      renderTabs();
+      renderStepPanel();
+    }
+
+    function resetConnector(connectorIndex) {
+      const quickState = getConnectorState(connectorIndex).quickSelectionEnabled;
+      connectingDevices[connectorIndex] = createDefaultConnectorState(connectorIndex);
+      connectingDevices[connectorIndex].quickSelectionEnabled = quickState;
+      delete quickSelectionState.connector[getQuickAnchorKey('connector', connectorIndex)];
+      reviewModalShown = false;
+      structureCollapsed = false;
+      renderClauseGrid();
+    }
+
+    function handleRoleTokenClick(roleId, tokenId) {
+      const roleState = getRoleState(activeClauseIndex, roleId);
+      if (roleState.quickSelectionEnabled) {
+        const key = getQuickAnchorKey('role', activeClauseIndex, roleId);
+        const currentAnchor = quickSelectionState.role[key];
+        if (currentAnchor === undefined) {
+          quickSelectionState.role[key] = tokenId;
+          renderStepPanel();
+          return;
+        }
+        roleState.selected = selectTokenRange(roleState.selected, getClauseAnalysisTokens(activeClauseIndex).map(token => token.id), currentAnchor, tokenId);
+        delete quickSelectionState.role[key];
+        roleState.confirmed = false;
+        renderStepPanel();
+        return;
+      }
+      toggleRoleToken(roleId, tokenId);
     }
 
     function toggleRoleToken(roleId, tokenId) {
-      const state = assignments[roleId];
-      const set = new Set(state.selected);
-
-      if (set.has(tokenId)) {
-        set.delete(tokenId);
-      } else {
-        set.add(tokenId);
-      }
-
-      assignments[roleId].selected = tokens
-        .map(token => token.id)
-        .filter(id => set.has(id));
-
+      const roleState = getRoleState(activeClauseIndex, roleId);
+      const availableTokenIds = getClauseAnalysisTokens(activeClauseIndex).map(token => token.id);
+      const set = new Set(roleState.selected);
+      if (set.has(tokenId)) set.delete(tokenId);
+      else set.add(tokenId);
+      roleState.selected = availableTokenIds.filter(id => set.has(id));
+      roleState.confirmed = false;
       renderStepPanel();
     }
 
     function confirmRole(roleId) {
-      assignments[roleId].confirmed = true;
+      getRoleState(activeClauseIndex, roleId).confirmed = true;
       renderStepPanel();
     }
 
     function resetRole(roleId) {
-      assignments[roleId] = {
-        selected: createDefaultSelection(),
-        confirmed: false
-      };
+      const roleState = getRoleState(activeClauseIndex, roleId);
+      const quickEnabled = roleState.quickSelectionEnabled;
+      roleState.selected = [];
+      roleState.confirmed = false;
+      roleState.quickSelectionEnabled = quickEnabled;
+      delete quickSelectionState.role[getQuickAnchorKey('role', activeClauseIndex, roleId)];
       renderStepPanel();
     }
 
-    function resetAll() {
-      assignments = createEmptyAssignments();
-      initializeSelections();
-      activeStepIndex = 0;
+    function clauseHasEdits(clauseIndex) {
+      const clauseState = clauseSelections[clauseIndex];
+      if (!clauseState) return false;
+      if (clauseState.selected.length || clauseState.confirmed) return true;
+      return roleSteps.some(step => step.roles.some(role => {
+        const state = getRoleState(clauseIndex, role.id);
+        return state && (state.selected.length || state.confirmed);
+      }));
+    }
+
+    function connectorHasEdits(connectorIndex) {
+      const connectorState = getConnectorState(connectorIndex);
+      return Boolean(connectorState && (connectorState.selected.length || connectorState.confirmed));
+    }
+
+    function applyClauseCountChange(nextCount) {
+      clauseCount = nextCount;
+      normalizeStateAfterResize(nextCount);
+      clauseCountSlider.value = String(nextCount);
+      clauseCountValue.textContent = String(nextCount);
+      reviewModalShown = false;
+      structureCollapsed = false;
+      renderAll();
+    }
+
+    function maybeUpdateClauseCount(nextCount) {
+      if (nextCount === clauseCount) return;
+      if (nextCount < clauseCount) {
+        const removedClauseEdited = Array.from({ length: clauseCount - nextCount }, (_, offset) => nextCount + offset)
+          .some(index => clauseHasEdits(index));
+        const removedConnectorEdited = Array.from({ length: Math.max(0, connectingDevices.length - Math.max(0, nextCount - 1)) }, (_, offset) => Math.max(0, nextCount - 1) + offset)
+          .some(index => connectorHasEdits(index));
+        const removedEdited = removedClauseEdited || removedConnectorEdited;
+        if (removedEdited) {
+          const confirmed = window.confirm(`若繼續，系統只會保留前 ${nextCount} 個子句容器，後面的已編輯內容都會被移除。要繼續嗎？`);
+          if (!confirmed) {
+            clauseCountSlider.value = String(clauseCount);
+            clauseCountValue.textContent = String(clauseCount);
+            return;
+          }
+        }
+      }
+      applyClauseCountChange(nextCount);
+    }
+
+    function rebuildAnalysis() {
+      tokens = tokenizeChinese(sentenceInput.value);
+      initializeClauseData(clauseCount);
+      reviewModalShown = false;
+      structureCollapsed = false;
+      renderAll();
+      structureSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function resetSentence() {
+      sentenceInput.value = defaultSentence;
+      tokens = [];
+      clauseCount = Number(clauseCountSlider.value);
+      initializeClauseData(clauseCount);
+      reviewModalShown = false;
+      structureCollapsed = false;
+      renderAll();
+      structureSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function renderAll() {
+      updateSentencePreview();
+      clauseCountValue.textContent = String(clauseCount);
+      updateStructureVisibility();
+      renderClauseGrid();
       renderTabs();
       renderStepPanel();
     }
 
-    tokenizeBtn.addEventListener('click', () => {
-      tokens = tokenizeChinese(sentenceInput.value);
-      assignments = createEmptyAssignments();
-      initializeSelections();
-      activeStepIndex = 0;
+    clauseCountSlider.addEventListener('input', () => {
+      pendingClauseCount = Number(clauseCountSlider.value);
+      clauseCountValue.textContent = String(pendingClauseCount);
+    });
+
+    clauseCountSlider.addEventListener('change', () => {
+      maybeUpdateClauseCount(Number(clauseCountSlider.value));
+    });
+
+    tokenizeBtn.addEventListener('click', rebuildAnalysis);
+    resetSentenceBtn.addEventListener('click', resetSentence);
+    sentenceInput.addEventListener('input', updateSentencePreview);
+    clearTranslationBtn.addEventListener('click', () => {
+      translationInput.value = '';
+    });
+    toggleStructureBtn.addEventListener('click', () => {
+      structureCollapsed = !structureCollapsed;
+      updateStructureVisibility();
+    });
+    reviewBackBtn.addEventListener('click', hideReviewModal);
+    sentenceStructureInput.addEventListener('input', updateReviewConfirmButtonState);
+    reviewConfirmBtn.addEventListener('click', () => {
+      translationInput.value = sentenceStructureInput.value.trim();
+      floatingEditor.dataset.expanded = 'true';
+      document.body.classList.remove('editor-collapsed');
+      toggleEditorBtn.textContent = '收合編輯器';
+      reviewModalShown = true;
+      structureCollapsed = true;
+      hideReviewModal();
+      renderAll();
+    });
+    subjectModalCancelBtn.addEventListener('click', hideSubjectModal);
+    subjectModalApplyBtn.addEventListener('click', () => {
+      clauseTextOverrides[activeClauseIndex] = subjectClauseInput.value.trim();
+      assignments[activeClauseIndex] = createRoleState();
+      activeRoleIndex = 0;
+      hideSubjectModal();
       renderTabs();
       renderStepPanel();
     });
 
-    resetAllBtn.addEventListener('click', resetAll);
+    toggleEditorBtn.addEventListener('click', () => {
+      const expanded = floatingEditor.dataset.expanded === 'true';
+      floatingEditor.dataset.expanded = String(!expanded);
+      document.body.classList.toggle('editor-collapsed', expanded);
+      toggleEditorBtn.textContent = expanded ? '展開編輯器' : '收合編輯器';
+    });
 
-    tokens = tokenizeChinese(sentenceInput.value);
-    initializeSelections();
-    renderTabs();
-    renderStepPanel();
+    tabScroll.addEventListener('scroll', () => {
+      window.clearTimeout(scrollTimer);
+      scrollTimer = window.setTimeout(syncActiveClauseFromScroll, 80);
+    });
+
+    tokens = [];
+    initializeClauseData(clauseCount);
+    renderAll();
   </script>
 </body>
 </html>
