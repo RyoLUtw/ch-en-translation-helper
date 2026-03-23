@@ -854,7 +854,7 @@
     function renderReviewModal() {
       const sequence = [];
       clauseSelections.forEach((_, index) => {
-        sequence.push(`<div class="review-token clause">Clause ${index + 1}：${getClauseReviewText(index) || '（空）'}</div>`);
+        sequence.push(`<div class="review-token clause">${getClauseReviewText(index) || '（空）'}</div>`);
         if (index < connectingDevices.length) {
           sequence.push(`<div class="review-token connector">${getConnectorReviewText(index) || '（無連接裝置）'}</div>`);
         }
@@ -870,7 +870,7 @@
     function renderCollapsedStructureSummary() {
       const sequence = [];
       clauseSelections.forEach((_, index) => {
-        sequence.push(`<div class="review-token clause">Clause ${index + 1}：${getClauseReviewText(index) || '（空）'}</div>`);
+        sequence.push(`<div class="review-token clause">${getClauseReviewText(index) || '（空）'}</div>`);
         if (index < connectingDevices.length) {
           sequence.push(`<div class="review-token connector">${getConnectorReviewText(index) || '（無連接裝置）'}</div>`);
         }
@@ -1170,7 +1170,6 @@
           <div class="step-meta">${step.description}</div>
         </div>
         <div class="hint-box">此區顯示的字詞來源為目前捲動選中的子句：<strong>${clauseTokens.map(token => token.text).join(' ') || '（無字詞）'}</strong></div>
-        ${step.id === 'subject' ? '<div class="inline-actions"><button id="openSubjectModalBtn">無主詞可選</button></div>' : ''}
         <div class="role-grid">
           ${step.roles.map(role => {
             const state = getRoleState(activeClauseIndex, role.id);
@@ -1184,6 +1183,7 @@
                   <div class="inline-actions">
                     <button class="small-btn ${state.quickSelectionEnabled ? 'active-toggle' : ''}" data-quick-role="${role.id}">${state.quickSelectionEnabled ? '快速選取：開' : '快速選取：關'}</button>
                     <button class="small-btn" data-reset-role="${role.id}">重設此區</button>
+                    ${step.id === 'subject' && role.id === 'subjectCore' ? '<button class="small-btn" data-open-subject-modal="true">無主詞可選</button>' : ''}
                     <button class="small-btn primary" data-confirm-role="${role.id}">確認</button>
                   </div>
                 </div>
@@ -1215,10 +1215,9 @@
       stepPanel.querySelectorAll('[data-quick-role]').forEach(btn => {
         btn.addEventListener('click', () => toggleQuickSelection('role', activeClauseIndex, btn.dataset.quickRole));
       });
-      const openSubjectModalBtn = document.getElementById('openSubjectModalBtn');
-      if (openSubjectModalBtn) {
-        openSubjectModalBtn.addEventListener('click', openSubjectModal);
-      }
+      stepPanel.querySelectorAll('[data-open-subject-modal]').forEach(btn => {
+        btn.addEventListener('click', openSubjectModal);
+      });
 
       document.getElementById('prevStepBtn').addEventListener('click', () => {
         activeRoleIndex = Math.max(0, activeRoleIndex - 1);
