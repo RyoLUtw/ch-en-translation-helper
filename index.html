@@ -886,11 +886,16 @@
       if (!sentenceStructureInput.value.trim()) {
         sentenceStructureInput.value = translationInput.value.trim();
       }
+      updateReviewConfirmButtonState();
       reviewModal.classList.remove('hidden');
     }
 
     function hideReviewModal() {
       reviewModal.classList.add('hidden');
+    }
+
+    function updateReviewConfirmButtonState() {
+      reviewConfirmBtn.disabled = !sentenceStructureInput.value.trim();
     }
 
     function updateStructureVisibility() {
@@ -1517,6 +1522,7 @@
       updateStructureVisibility();
     });
     reviewBackBtn.addEventListener('click', hideReviewModal);
+    sentenceStructureInput.addEventListener('input', updateReviewConfirmButtonState);
     reviewConfirmBtn.addEventListener('click', () => {
       translationInput.value = sentenceStructureInput.value.trim();
       floatingEditor.dataset.expanded = 'true';
