@@ -512,7 +512,7 @@
       </div>
     </section>
 
-    <section class="card structure-panel">
+    <section id="structureSection" class="card structure-panel">
       <div class="clause-box-header">
         <div>
         <h2>1. 辨認句子結構</h2>
@@ -626,6 +626,7 @@
     const structureStatus = document.getElementById('structureStatus');
     const structureBody = document.getElementById('structureBody');
     const structureCollapsedSummary = document.getElementById('structureCollapsedSummary');
+    const structureSection = document.getElementById('structureSection');
     const tabScroll = document.getElementById('tabScroll');
     const floatingEditor = document.getElementById('floatingEditor');
     const toggleEditorBtn = document.getElementById('toggleEditorBtn');
@@ -1478,18 +1479,18 @@
       reviewModalShown = false;
       structureCollapsed = false;
       renderAll();
-      scrollClauseTabIntoView(activeClauseIndex);
+      structureSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function resetSentence() {
       sentenceInput.value = defaultSentence;
-      tokens = tokenizeChinese(sentenceInput.value);
+      tokens = [];
       clauseCount = Number(clauseCountSlider.value);
       initializeClauseData(clauseCount);
       reviewModalShown = false;
       structureCollapsed = false;
       renderAll();
-      scrollClauseTabIntoView(activeClauseIndex);
+      structureSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function renderAll() {
@@ -1555,10 +1556,9 @@
       scrollTimer = window.setTimeout(syncActiveClauseFromScroll, 80);
     });
 
-    tokens = tokenizeChinese(sentenceInput.value);
+    tokens = [];
     initializeClauseData(clauseCount);
     renderAll();
-    window.setTimeout(() => scrollClauseTabIntoView(0), 60);
   </script>
 </body>
 </html>
