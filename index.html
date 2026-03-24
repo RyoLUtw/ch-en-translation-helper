@@ -548,9 +548,6 @@
         <button id="tokenizeBtn" class="primary">開始翻譯</button>
         <button id="resetSentenceBtn">恢復預設句子</button>
       </div>
-      <div class="hint-box">
-        目前分析使用的句子：<strong id="sentencePreview"></strong>
-      </div>
     </section>
 
     <section id="structureSection" class="card structure-panel">
@@ -683,7 +680,6 @@
     const tokenizeBtn = document.getElementById('tokenizeBtn');
     const resetSentenceBtn = document.getElementById('resetSentenceBtn');
     const stepPanel = document.getElementById('stepPanel');
-    const sentencePreview = document.getElementById('sentencePreview');
     const clauseCountSlider = document.getElementById('clauseCountSlider');
     const clauseCountValue = document.getElementById('clauseCountValue');
     const clauseGrid = document.getElementById('clauseGrid');
@@ -956,7 +952,8 @@
     function renderReviewModal() {
       const sequence = [];
       clauseSelections.forEach((_, index) => {
-        sequence.push(`<div class="review-token clause">${getClauseReviewText(index) || '（空）'}</div>`);
+        const clauseText = getClauseReviewText(index) || '（空）';
+        sequence.push(`<div class="review-token clause">子句${index + 1}: ${clauseText}</div>`);
         if (index < connectingDevices.length) {
           sequence.push(`<div class="review-token connector">${getConnectorReviewText(index) || '（無連接裝置）'}</div>`);
         }
@@ -972,7 +969,8 @@
     function renderCollapsedStructureSummary() {
       const sequence = [];
       clauseSelections.forEach((_, index) => {
-        sequence.push(`<div class="review-token clause">${getClauseReviewText(index) || '（空）'}</div>`);
+        const clauseText = getClauseReviewText(index) || '（空）';
+        sequence.push(`<div class="review-token clause">子句${index + 1}: ${clauseText}</div>`);
         if (index < connectingDevices.length) {
           sequence.push(`<div class="review-token connector">${getConnectorReviewText(index) || '（無連接裝置）'}</div>`);
         }
@@ -1010,7 +1008,6 @@
 
     function updateSentencePreview() {
       const text = sentenceInput.value.trim();
-      sentencePreview.textContent = text || '（尚未輸入句子）';
       structureOriginalSentence.textContent = text ? `原始句子：${text}` : '原始句子：（尚未輸入句子）';
     }
 
