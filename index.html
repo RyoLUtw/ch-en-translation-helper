@@ -279,6 +279,23 @@
     .chip-verb { background: var(--verb); }
     .chip-object { background: var(--object); }
 
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 30px;
+      font-weight: 800;
+      border: 1px solid rgba(15, 23, 42, 0.2);
+      line-height: 1.15;
+    }
+
+    .role-badge[data-chip-class="chip-modifier"] { background: var(--modifier); }
+    .role-badge[data-chip-class="chip-subject"] { background: var(--subject); }
+    .role-badge[data-chip-class="chip-verb"] { background: var(--verb); }
+    .role-badge[data-chip-class="chip-object"] { background: var(--object); }
+
     .token-field {
       min-height: 92px;
       border: 1px dashed var(--border);
@@ -311,6 +328,26 @@
     .role-token.selected {
       background: var(--selection);
       border-color: #6366f1;
+    }
+
+    .role-token.assigned-chip-subject {
+      background: color-mix(in srgb, var(--subject) 78%, white 22%);
+      border-color: #93c5fd;
+    }
+
+    .role-token.assigned-chip-verb {
+      background: color-mix(in srgb, var(--verb) 78%, white 22%);
+      border-color: #fca5a5;
+    }
+
+    .role-token.assigned-chip-object {
+      background: color-mix(in srgb, var(--object) 78%, white 22%);
+      border-color: #86efac;
+    }
+
+    .role-token.assigned-chip-modifier {
+      background: color-mix(in srgb, var(--modifier) 78%, white 22%);
+      border-color: #fcd34d;
     }
 
     .role-token.quick-anchor {
@@ -519,6 +556,26 @@
       color: white;
     }
 
+    .result-token-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .result-token {
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-weight: 700;
+    }
+
+    .legend-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
     @media (max-width: 900px) {
       .app {
         padding: 16px 16px calc(var(--editor-height) + 24px);
@@ -601,7 +658,7 @@
     </section>
   </div>
 
-  <section id="floatingEditor" class="floating-editor" data-expanded="true">
+  <section id="floatingEditor" class="floating-editor hidden" data-expanded="true">
     <div class="floating-editor-header">
       <div>
         <div class="title-with-help">
@@ -674,6 +731,54 @@
     </div>
   </div>
 
+  <div id="clauseTranslationModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div>
+        <h3 id="clauseTranslationModalTitle">子句角色分析結果</h3>
+        <p class="muted">確認這個子句的角色標記後，請在下方繼續撰寫完整英文翻譯。</p>
+      </div>
+      <div class="review-item">
+        <strong>子句角色標記</strong>
+        <div id="clauseRoleResultTokens" class="result-token-row" style="margin-top: 10px;"></div>
+      </div>
+      <div class="review-item">
+        <strong>色彩圖例</strong>
+        <div id="clauseRoleLegend" class="legend-row" style="margin-top: 10px;"></div>
+      </div>
+      <div class="review-item">
+        <label for="clauseTranslationInput"><strong>英文翻譯</strong></label>
+        <textarea id="clauseTranslationInput" style="margin-top: 10px;" placeholder="Write your translation..."></textarea>
+      </div>
+      <div class="inline-actions">
+        <button id="clauseTranslationActionBtn" class="primary">分析下個子句</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="shareLinkModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div>
+        <h3>分享翻譯結果</h3>
+        <p class="muted">以下是目前的角色分析、最終翻譯，以及可分享連結。</p>
+      </div>
+      <div class="review-item">
+        <strong>角色分析結果</strong>
+        <div id="shareRoleResult" style="margin-top: 10px;"></div>
+      </div>
+      <div class="review-item">
+        <strong>最終翻譯</strong>
+        <p id="shareFinalTranslation" style="margin: 10px 0 0;"></p>
+      </div>
+      <div class="review-item">
+        <label for="shareLinkInput"><strong>分享連結</strong></label>
+        <input id="shareLinkInput" type="text" readonly style="width: 100%; margin-top: 10px; padding: 12px 14px; border-radius: 12px; border: 1px solid #d1d5db; font: inherit;" />
+      </div>
+      <div class="inline-actions">
+        <button id="copyShareLinkBtn" class="primary">複製連結</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const sentenceInput = document.getElementById('sentenceInput');
     const tokenizeBtn = document.getElementById('tokenizeBtn');
@@ -707,6 +812,17 @@
     const subjectClauseInput = document.getElementById('subjectClauseInput');
     const subjectModalCancelBtn = document.getElementById('subjectModalCancelBtn');
     const subjectModalApplyBtn = document.getElementById('subjectModalApplyBtn');
+    const clauseTranslationModal = document.getElementById('clauseTranslationModal');
+    const clauseTranslationModalTitle = document.getElementById('clauseTranslationModalTitle');
+    const clauseRoleResultTokens = document.getElementById('clauseRoleResultTokens');
+    const clauseRoleLegend = document.getElementById('clauseRoleLegend');
+    const clauseTranslationInput = document.getElementById('clauseTranslationInput');
+    const clauseTranslationActionBtn = document.getElementById('clauseTranslationActionBtn');
+    const shareLinkModal = document.getElementById('shareLinkModal');
+    const shareRoleResult = document.getElementById('shareRoleResult');
+    const shareFinalTranslation = document.getElementById('shareFinalTranslation');
+    const shareLinkInput = document.getElementById('shareLinkInput');
+    const copyShareLinkBtn = document.getElementById('copyShareLinkBtn');
 
     const defaultSentence = 'Leo昨天回家後馬上洗澡。';
 
@@ -786,6 +902,13 @@
       }
     ];
 
+    const roleMetaMap = {};
+    roleSteps.forEach(step => {
+      step.roles.forEach(role => {
+        roleMetaMap[role.id] = role;
+      });
+    });
+
     let tokens = [];
     let clauseCount = Number(clauseCountSlider.value);
     let activeClauseIndex = 0;
@@ -798,6 +921,8 @@
     let pendingClauseCount = clauseCount;
     let structureCollapsed = false;
     let reviewModalShown = false;
+    let workflowStarted = false;
+    let currentTranslationClauseIndex = -1;
     const quickSelectionState = {
       clause: {},
       connector: {},
@@ -905,6 +1030,21 @@
 
     function getRoleState(clauseIndex, roleId) {
       return assignments[clauseIndex]?.[roleId];
+    }
+
+    function getRoleIdByToken(clauseIndex, tokenId) {
+      for (const step of roleSteps) {
+        for (const role of step.roles) {
+          const state = getRoleState(clauseIndex, role.id);
+          if (state?.selected.includes(tokenId)) return role.id;
+        }
+      }
+      return null;
+    }
+
+    function getRoleChipClassByToken(clauseIndex, tokenId) {
+      const roleId = getRoleIdByToken(clauseIndex, tokenId);
+      return roleId ? (roleMetaMap[roleId]?.chipClass || '') : '';
     }
 
     function getClauseAnalysisTokens(clauseIndex) {
@@ -1018,6 +1158,156 @@
 
     function hideSubjectModal() {
       subjectModal.classList.add('hidden');
+    }
+
+    function buildClauseTokenRoleMap(clauseIndex) {
+      const map = {};
+      const clauseTokens = getClauseAnalysisTokens(clauseIndex);
+      clauseTokens.forEach(token => {
+        const roleId = getRoleIdByToken(clauseIndex, token.id);
+        if (roleId) map[token.id] = roleId;
+      });
+      return map;
+    }
+
+    function renderClauseRoleResult(clauseIndex, target) {
+      const clauseTokens = getClauseAnalysisTokens(clauseIndex);
+      target.innerHTML = clauseTokens.map(token => {
+        const roleId = getRoleIdByToken(clauseIndex, token.id);
+        const chipClass = roleId ? roleMetaMap[roleId]?.chipClass : '';
+        return `<span class="result-token ${chipClass || ''}">${token.text}</span>`;
+      }).join('');
+    }
+
+    function renderRoleLegend(target) {
+      target.innerHTML = `
+        <span class="role-chip chip-subject">主詞</span>
+        <span class="role-chip chip-verb">動詞</span>
+        <span class="role-chip chip-object">受詞</span>
+        <span class="role-chip chip-modifier">修飾詞</span>
+      `;
+    }
+
+    function showClauseTranslationModal(clauseIndex) {
+      currentTranslationClauseIndex = clauseIndex;
+      clauseTranslationModalTitle.textContent = `子句 ${clauseIndex + 1} 角色分析結果`;
+      renderClauseRoleResult(clauseIndex, clauseRoleResultTokens);
+      renderRoleLegend(clauseRoleLegend);
+      if (!workflowStarted && clauseIndex === 0) {
+        clauseTranslationInput.value = sentenceStructureInput.value.trim() || translationInput.value.trim();
+      } else {
+        clauseTranslationInput.value = translationInput.value.trim();
+      }
+      const isLastClause = clauseIndex === clauseCount - 1;
+      clauseTranslationActionBtn.textContent = isLastClause ? '完成翻譯' : '分析下個子句';
+      clauseTranslationModal.classList.remove('hidden');
+    }
+
+    function hideClauseTranslationModal() {
+      clauseTranslationModal.classList.add('hidden');
+    }
+
+    function buildSharePayload() {
+      return {
+        sentence: sentenceInput.value.trim(),
+        clauseCount,
+        clauseSelections: clauseSelections.map(state => ({ selected: state.selected, confirmed: state.confirmed })),
+        connectingDevices: connectingDevices.map(state => ({ selected: state.selected, confirmed: state.confirmed })),
+        clauseTextOverrides,
+        assignments: assignments.map(clauseAssignment => {
+          const roleStore = {};
+          Object.keys(clauseAssignment).forEach(roleId => {
+            roleStore[roleId] = {
+              selected: clauseAssignment[roleId].selected,
+              confirmed: clauseAssignment[roleId].confirmed
+            };
+          });
+          return roleStore;
+        }),
+        translation: translationInput.value.trim(),
+        sentenceStructure: sentenceStructureInput.value.trim()
+      };
+    }
+
+    function buildShareLink() {
+      const payload = encodeURIComponent(JSON.stringify(buildSharePayload()));
+      return `${window.location.origin}${window.location.pathname}?share=${payload}`;
+    }
+
+    function renderShareRoleSummary() {
+      shareRoleResult.innerHTML = clauseSelections.map((_, clauseIndex) => `
+        <div class="review-item">
+          <strong>子句 ${clauseIndex + 1}</strong>
+          <div class="result-token-row" style="margin-top: 8px;">
+            ${getClauseAnalysisTokens(clauseIndex).map(token => {
+              const roleId = getRoleIdByToken(clauseIndex, token.id);
+              const chipClass = roleId ? roleMetaMap[roleId]?.chipClass : '';
+              return `<span class="result-token ${chipClass || ''}">${token.text}</span>`;
+            }).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function showShareLinkModal() {
+      renderShareRoleSummary();
+      shareFinalTranslation.textContent = translationInput.value.trim() || '（尚未輸入）';
+      shareLinkInput.value = buildShareLink();
+      shareLinkModal.classList.remove('hidden');
+    }
+
+    function hideShareLinkModal() {
+      shareLinkModal.classList.add('hidden');
+    }
+
+    function applySharedPayload(payload) {
+      if (!payload || typeof payload !== 'object') return false;
+      if (typeof payload.sentence !== 'string') return false;
+      sentenceInput.value = payload.sentence;
+      clauseCount = Number(payload.clauseCount) || 1;
+      clauseCountSlider.value = String(clauseCount);
+      tokens = tokenizeChinese(payload.sentence);
+      initializeClauseData(clauseCount);
+
+      if (Array.isArray(payload.clauseSelections)) {
+        payload.clauseSelections.forEach((state, index) => {
+          if (!clauseSelections[index]) return;
+          clauseSelections[index].selected = Array.isArray(state.selected) ? state.selected : [];
+          clauseSelections[index].confirmed = Boolean(state.confirmed);
+        });
+      }
+      if (Array.isArray(payload.connectingDevices)) {
+        payload.connectingDevices.forEach((state, index) => {
+          if (!connectingDevices[index]) return;
+          connectingDevices[index].selected = Array.isArray(state.selected) ? state.selected : [];
+          connectingDevices[index].confirmed = Boolean(state.confirmed);
+        });
+      }
+      if (Array.isArray(payload.clauseTextOverrides)) {
+        clauseTextOverrides = clauseTextOverrides.map((value, index) => payload.clauseTextOverrides[index] ?? value);
+      }
+      if (Array.isArray(payload.assignments)) {
+        payload.assignments.forEach((clauseAssignment, clauseIndex) => {
+          if (!assignments[clauseIndex] || !clauseAssignment) return;
+          Object.keys(assignments[clauseIndex]).forEach(roleId => {
+            const roleState = clauseAssignment[roleId];
+            if (!roleState) return;
+            assignments[clauseIndex][roleId].selected = Array.isArray(roleState.selected) ? roleState.selected : [];
+            assignments[clauseIndex][roleId].confirmed = Boolean(roleState.confirmed);
+          });
+        });
+      }
+
+      sentenceStructureInput.value = typeof payload.sentenceStructure === 'string' ? payload.sentenceStructure : '';
+      translationInput.value = typeof payload.translation === 'string' ? payload.translation : '';
+      reviewModalShown = true;
+      structureCollapsed = true;
+      workflowStarted = true;
+      activeClauseIndex = 0;
+      activeRoleIndex = 0;
+      renderAll();
+      showShareLinkModal();
+      return true;
     }
 
     function getQuickAnchorKey(kind, clauseIndex, roleId = '') {
@@ -1248,9 +1538,13 @@
 
       if (!visibleTokens.length) return '<div class="placeholder">沒有任何字詞屬於此分類。</div>';
 
-      return visibleTokens.map(token => `
-        <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''} ${anchorId === token.id ? 'quick-anchor' : ''}" data-role-id="${roleId}" data-token-id="${token.id}">${token.text}</button>
-      `).join('');
+      return visibleTokens.map(token => {
+        const assignedChipClass = getRoleChipClassByToken(activeClauseIndex, token.id);
+        const assignedClass = assignedChipClass ? `assigned-${assignedChipClass}` : '';
+        return `
+        <button class="role-token ${assignedClass} ${selectedSet.has(token.id) ? 'selected' : ''} ${anchorId === token.id ? 'quick-anchor' : ''}" data-role-id="${roleId}" data-token-id="${token.id}">${token.text}</button>
+      `;
+      }).join('');
     }
 
     function openHelpModal(helpKey) {
@@ -1289,8 +1583,9 @@
               <div class="role-box ${state.confirmed ? 'confirmed' : ''}" data-role-id="${role.id}">
                 <div class="role-box-header">
                   <div>
-                    <div class="role-title">${role.label}</div>
-                    <div class="role-chip ${role.chipClass}">${role.label}</div>
+                    <div class="role-badge" data-chip-class="${role.chipClass}">
+                      <span>${role.label}</span>
+                    </div>
                   </div>
                   <div class="inline-actions">
                     <button class="small-btn ${state.quickSelectionEnabled ? 'active-toggle' : ''}" data-quick-role="${role.id}">${state.quickSelectionEnabled ? '快速選取：開' : '快速選取：關'}</button>
@@ -1370,6 +1665,19 @@
       const nextSet = new Set(existingSelection);
       tokenSourceIds.slice(from, to + 1).forEach(id => nextSet.add(id));
       return tokenSourceIds.filter(id => nextSet.has(id));
+    }
+
+    function removeTokenFromOtherRoles(clauseIndex, roleId, tokenIds) {
+      const target = new Set(tokenIds);
+      roleSteps.forEach(step => {
+        step.roles.forEach(role => {
+          if (role.id === roleId) return;
+          const state = getRoleState(clauseIndex, role.id);
+          if (!state?.selected.length) return;
+          state.selected = state.selected.filter(id => !target.has(id));
+          if (!state.selected.length) state.confirmed = false;
+        });
+      });
     }
 
     function handleClauseTokenClick(clauseIndex, tokenId) {
@@ -1496,6 +1804,7 @@
           return;
         }
         roleState.selected = selectTokenRange(roleState.selected, getClauseAnalysisTokens(activeClauseIndex).map(token => token.id), currentAnchor, tokenId);
+        removeTokenFromOtherRoles(activeClauseIndex, roleId, roleState.selected);
         delete quickSelectionState.role[key];
         roleState.confirmed = false;
         renderStepPanel();
@@ -1508,8 +1817,12 @@
       const roleState = getRoleState(activeClauseIndex, roleId);
       const availableTokenIds = getClauseAnalysisTokens(activeClauseIndex).map(token => token.id);
       const set = new Set(roleState.selected);
-      if (set.has(tokenId)) set.delete(tokenId);
-      else set.add(tokenId);
+      if (set.has(tokenId)) {
+        set.delete(tokenId);
+      } else {
+        removeTokenFromOtherRoles(activeClauseIndex, roleId, [tokenId]);
+        set.add(tokenId);
+      }
       roleState.selected = availableTokenIds.filter(id => set.has(id));
       roleState.confirmed = false;
       renderStepPanel();
@@ -1518,6 +1831,9 @@
     function confirmRole(roleId) {
       getRoleState(activeClauseIndex, roleId).confirmed = true;
       renderStepPanel();
+      if (workflowStarted && isCurrentClauseFullyConfirmed()) {
+        showClauseTranslationModal(activeClauseIndex);
+      }
     }
 
     function resetRole(roleId) {
@@ -1552,6 +1868,10 @@
       clauseCountValue.textContent = String(nextCount);
       reviewModalShown = false;
       structureCollapsed = false;
+      workflowStarted = false;
+      currentTranslationClauseIndex = -1;
+      hideClauseTranslationModal();
+      hideShareLinkModal();
       renderAll();
     }
 
@@ -1580,6 +1900,10 @@
       initializeClauseData(clauseCount);
       reviewModalShown = false;
       structureCollapsed = false;
+      workflowStarted = false;
+      currentTranslationClauseIndex = -1;
+      hideClauseTranslationModal();
+      hideShareLinkModal();
       renderAll();
       structureSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -1591,6 +1915,10 @@
       initializeClauseData(clauseCount);
       reviewModalShown = false;
       structureCollapsed = false;
+      workflowStarted = false;
+      currentTranslationClauseIndex = -1;
+      hideClauseTranslationModal();
+      hideShareLinkModal();
       renderAll();
       
     }
@@ -1637,13 +1965,18 @@
     sentenceStructureInput.addEventListener('input', updateReviewConfirmButtonState);
     reviewConfirmBtn.addEventListener('click', () => {
       translationInput.value = sentenceStructureInput.value.trim();
-      floatingEditor.dataset.expanded = 'true';
-      document.body.classList.remove('editor-collapsed');
-      toggleEditorBtn.textContent = '收合編輯器';
       reviewModalShown = true;
       structureCollapsed = true;
+      workflowStarted = true;
       hideReviewModal();
       renderAll();
+      activeClauseIndex = 0;
+      activeRoleIndex = 0;
+      renderTabs();
+      renderStepPanel();
+      if (isCurrentClauseFullyConfirmed()) {
+        showClauseTranslationModal(0);
+      }
     });
     subjectModalCancelBtn.addEventListener('click', hideSubjectModal);
     subjectModalApplyBtn.addEventListener('click', () => {
@@ -1655,11 +1988,39 @@
       renderStepPanel();
     });
 
-    toggleEditorBtn.addEventListener('click', () => {
-      const expanded = floatingEditor.dataset.expanded === 'true';
-      floatingEditor.dataset.expanded = String(!expanded);
-      document.body.classList.toggle('editor-collapsed', expanded);
-      toggleEditorBtn.textContent = expanded ? '展開編輯器' : '收合編輯器';
+    toggleEditorBtn.addEventListener('click', () => {});
+
+    clauseTranslationActionBtn.addEventListener('click', () => {
+      translationInput.value = clauseTranslationInput.value.trim();
+      const clauseIndex = currentTranslationClauseIndex;
+      const isLastClause = clauseIndex >= clauseCount - 1;
+      hideClauseTranslationModal();
+      if (isLastClause) {
+        showShareLinkModal();
+        return;
+      }
+      activeClauseIndex = clauseIndex + 1;
+      activeRoleIndex = 0;
+      renderTabs();
+      renderStepPanel();
+      scrollClauseTabIntoView(activeClauseIndex);
+    });
+
+    copyShareLinkBtn.addEventListener('click', async () => {
+      const text = shareLinkInput.value;
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        copyShareLinkBtn.textContent = '已複製';
+        window.setTimeout(() => { copyShareLinkBtn.textContent = '複製連結'; }, 1200);
+      } catch (_) {
+        shareLinkInput.select();
+        document.execCommand('copy');
+      }
+    });
+
+    shareLinkModal.addEventListener('click', event => {
+      if (event.target === shareLinkModal) hideShareLinkModal();
     });
 
     tabScroll.addEventListener('scroll', () => {
@@ -1667,9 +2028,25 @@
       scrollTimer = window.setTimeout(syncActiveClauseFromScroll, 80);
     });
 
-    tokens = [];
-    initializeClauseData(clauseCount);
-    renderAll();
+    const shareParam = new URLSearchParams(window.location.search).get('share');
+    if (shareParam) {
+      try {
+        const payload = JSON.parse(decodeURIComponent(shareParam));
+        if (!applySharedPayload(payload)) {
+          tokens = [];
+          initializeClauseData(clauseCount);
+          renderAll();
+        }
+      } catch (_) {
+        tokens = [];
+        initializeClauseData(clauseCount);
+        renderAll();
+      }
+    } else {
+      tokens = [];
+      initializeClauseData(clauseCount);
+      renderAll();
+    }
   </script>
 </body>
 </html>
