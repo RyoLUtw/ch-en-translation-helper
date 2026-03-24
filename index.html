@@ -543,13 +543,10 @@
         <h1 style="margin: 0;">輸入要翻譯的中文句子</h1>
         <button class="help-icon-btn" data-help-key="appOverview" aria-label="中文句子分析工具說明">?</button>
       </div>
-      <textarea id="sentenceInput">小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。</textarea>
+      <textarea id="sentenceInput">Leo昨天回家後馬上洗澡。</textarea>
       <div class="page-actions">
         <button id="tokenizeBtn" class="primary">開始翻譯</button>
         <button id="resetSentenceBtn">恢復預設句子</button>
-      </div>
-      <div class="hint-box">
-        目前分析使用的句子：<strong id="sentencePreview"></strong>
       </div>
     </section>
 
@@ -590,8 +587,7 @@
       <div>
         <div class="section-heading">
           <h2 style="margin: 0;">2. 子句角色分析</h2>
-          <button class="help-icon-btn" data-help-key="roleAnalysis" aria-label="子句角色分析說明">?</button>
-        </div>
+          <button class="help-icon-btn" data-help-key="roleAnalysis" aria-label="子句角色分析說明">?</button>子句        </div>
       </div>
       <div class="tab-scroll-wrap">
         <div id="tabScroll" class="tab-scroll"></div>
@@ -683,7 +679,6 @@
     const tokenizeBtn = document.getElementById('tokenizeBtn');
     const resetSentenceBtn = document.getElementById('resetSentenceBtn');
     const stepPanel = document.getElementById('stepPanel');
-    const sentencePreview = document.getElementById('sentencePreview');
     const clauseCountSlider = document.getElementById('clauseCountSlider');
     const clauseCountValue = document.getElementById('clauseCountValue');
     const clauseGrid = document.getElementById('clauseGrid');
@@ -713,28 +708,28 @@
     const subjectModalCancelBtn = document.getElementById('subjectModalCancelBtn');
     const subjectModalApplyBtn = document.getElementById('subjectModalApplyBtn');
 
-    const defaultSentence = '小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。';
+    const defaultSentence = 'Leo昨天回家後馬上洗澡。';
 
     const helpContent = {
       appOverview: {
-        title: '中文句子分析工具 POC',
-        description: '先輸入中文句子並切詞，再完成句子結構與子句角色分析；底部編輯器則專門用來撰寫英文翻譯。',
-        example: '例如：先把「小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。」切詞，再分成兩個子句，最後在底部寫出英文譯文。'
+        title: '輸入要翻譯的中文句子',
+        description: '將要翻譯的中文句子輸入到輸入框中。',
+        example: 'Leo昨天回家後馬上洗澡。'
       },
       structureStep: {
         title: '辨認句子結構',
-        description: '先決定句子包含幾個子句，再把各子句與相鄰子句間的連接裝置分配到正確區塊中。',
-        example: '例如：「小明踢足球，然後回家洗澡」可分成兩個子句，並把「然後」標記成兩個子句之間的連接裝置。'
+        description: '先決定句子包含幾個子句，再把相鄰子句間的連接裝置找出來。',
+        example: '例如：「Leo昨天回家後馬上洗澡。」可分成兩個子句：「Leo昨天回家」以及「馬上洗澡」，因此將子句數量滑桿拉至2，把「Leo昨天回家」標記為子句1，「馬上洗澡」標記為子句2，再把「後」標記成兩個子句之間的連接裝置。'
       },
       clauseCount: {
         title: '子句數量',
-        description: '用滑桿調整子句數量，系統會盡量保留既有選取；若減少子句，會在需要時提醒你確認。',
-        example: '例如：原本設定 3 個子句後發現其實只有 2 個，可以把滑桿拉回 2，並確認是否刪除最後一個子句內容。'
+        description: '用滑桿調整子句數量',
+        example: '例如：「Leo昨天回家後馬上洗澡。」可分成兩個子句：「Leo昨天回家」以及「馬上洗澡」，因此將子句數量滑桿拉至2。'
       },
       roleAnalysis: {
         title: '子句角色分析',
-        description: '切換不同子句與角色分析步驟，逐一標記主詞、動詞、受詞與子句修飾詞。',
-        example: '例如：在 Clause 1 先標記「小明」是主詞，再切到動詞分析把「踢」標成動詞。'
+        description: '按子句順序翻譯，逐一標記每個子句中的主詞、動詞、受詞與子句修飾詞。',
+        example: '例如：在子句1(Leo昨天回家)，「Leo」是沒有加任何修飾詞的主詞，所以「主詞修飾詞」的部分不必選擇(直接按「確認」)，而「主詞」則需要選擇「Leo」。確認後，點選「下一個角色」，開始分析動詞，在子句1中，只有「回家」是動詞，沒有動詞修飾詞，因此「動詞修飾詞」的部分不必選擇，「動詞」則選擇「回家」。依此類推完成受詞與子句修飾詞的分析後，再進行子句2的角色分析。'
       },
       floatingEditor: {
         title: '英文翻譯浮動編輯器',
@@ -748,8 +743,8 @@
         id: 'subject',
         shortLabel: 'S',
         title: '主詞分析',
-        description: '請針對目前選取子句的字詞，找出主詞修飾詞與主詞。',
-        example: '例如：在「可愛的小明踢球」中，可把「可愛的」放入主詞修飾詞，「小明」放入主詞。',
+        description: '從目前子句的字詞中，找出主詞修飾詞與主詞。有些中文句子為了避免重複，可能會省略主詞，如果找不到明確的主詞，可以在主詞欄位點選「無主詞可選(位於確認鍵左邊)」，修改原始子句，補回適合的主詞後再進行分析。',
+        example: '例如：在「可愛的Leo昨天回家後馬上洗澡。」這個句子中有兩個子句。 第一個子句(可愛的Leo昨天回家)進行主詞分析時，把「可愛的」選為主詞修飾詞，「Leo」選為主詞。第二個子句(馬上洗澡)進行主詞分析時，找不到明確的主詞，因此點選「無主詞可選」，在彈出視窗中把子句修改成「他馬上洗澡」，再把「他」選為主詞。',
         roles: [
           { id: 'modSub', label: '主詞修飾詞', chipClass: 'chip-modifier' },
           { id: 'subjectCore', label: '主詞', chipClass: 'chip-subject' }
@@ -759,8 +754,8 @@
         id: 'verb',
         shortLabel: 'V',
         title: '動詞分析',
-        description: '請針對目前選取子句的字詞，找出動詞修飾詞與動詞。',
-        example: '例如：在「快速地跑」中，可把「快速地」放入動詞修飾詞，「跑」放入動詞。',
+        description: '從目前子句的字詞中，找出動詞修飾詞與動詞。',
+        example: '例如：在「可愛的Leo昨天回家後馬上洗澡。」這個句子中有兩個子句。第一個子句(可愛的Leo昨天回家)進行動詞分析時，沒有動詞修飾詞(直接按「確認」)，「回家」則選為動詞。第二個子句(馬上洗澡)進行動詞分析時，把「馬上」選為動詞修飾詞，「洗澡」選為動詞。',
         roles: [
           { id: 'modVerb', label: '動詞修飾詞', chipClass: 'chip-modifier' },
           { id: 'verbCore', label: '動詞', chipClass: 'chip-verb' }
@@ -770,8 +765,8 @@
         id: 'object',
         shortLabel: 'O',
         title: '受詞分析',
-        description: '請針對目前選取子句的字詞，找出受詞修飾詞與受詞。',
-        example: '例如：在「踢紅色的足球」中，可把「紅色的」放入受詞修飾詞，「足球」放入受詞。',
+        description: '從目前子句的字詞中，找出受詞修飾詞與受詞。',
+        example: '例如：在「Leo撿起紅色的足球」這個子句中，可把「紅色的」放入受詞修飾詞，「足球」放入受詞。',
         roles: [
           { id: 'modObj', label: '受詞修飾詞', chipClass: 'chip-modifier' },
           { id: 'objectCore', label: '受詞', chipClass: 'chip-object' }
@@ -782,9 +777,9 @@
         shortLabel: 'CM',
         title: '子句修飾詞分析',
         description: '請找出修飾整個子句的內容。',
-        example: '例如：在「昨天在公園裡開心地踢球」中，可把「昨天」標成時間修飾詞、「在公園裡」標成地方修飾詞、「開心地」標成方式修飾詞。',
+        example: '例如：在「很不幸地，Leo昨天在公園受傷了。」子句中，可把「昨天」標成時間修飾詞、「在公園」標成地方修飾詞、「很不幸地」標成整個子句的修飾詞。',
         roles: [
-          { id: 'modManner', label: '方式修飾詞', chipClass: 'chip-modifier' },
+          { id: 'modManner', label: '整個子句的修飾詞', chipClass: 'chip-modifier' },
           { id: 'modPlace', label: '地方修飾詞', chipClass: 'chip-modifier' },
           { id: 'modTime', label: '時間修飾詞', chipClass: 'chip-modifier' }
         ]
@@ -956,7 +951,8 @@
     function renderReviewModal() {
       const sequence = [];
       clauseSelections.forEach((_, index) => {
-        sequence.push(`<div class="review-token clause">${getClauseReviewText(index) || '（空）'}</div>`);
+        const clauseText = getClauseReviewText(index) || '（空）';
+        sequence.push(`<div class="review-token clause">子句${index + 1}: ${clauseText}</div>`);
         if (index < connectingDevices.length) {
           sequence.push(`<div class="review-token connector">${getConnectorReviewText(index) || '（無連接裝置）'}</div>`);
         }
@@ -972,7 +968,8 @@
     function renderCollapsedStructureSummary() {
       const sequence = [];
       clauseSelections.forEach((_, index) => {
-        sequence.push(`<div class="review-token clause">${getClauseReviewText(index) || '（空）'}</div>`);
+        const clauseText = getClauseReviewText(index) || '（空）';
+        sequence.push(`<div class="review-token clause">子句${index + 1}: ${clauseText}</div>`);
         if (index < connectingDevices.length) {
           sequence.push(`<div class="review-token connector">${getConnectorReviewText(index) || '（無連接裝置）'}</div>`);
         }
@@ -1010,7 +1007,6 @@
 
     function updateSentencePreview() {
       const text = sentenceInput.value.trim();
-      sentencePreview.textContent = text || '（尚未輸入句子）';
       structureOriginalSentence.textContent = text ? `原始句子：${text}` : '原始句子：（尚未輸入句子）';
     }
 
@@ -1186,7 +1182,7 @@
     function renderTabs() {
       tabScroll.innerHTML = clauseSelections.map((_, clauseIndex) => `
         <div class="clause-tab-group ${clauseIndex === activeClauseIndex ? 'active' : ''}" data-clause-group="${clauseIndex}">
-          <div class="clause-tab-label">Clause ${clauseIndex + 1}</div>
+          <div class="clause-tab-label">子句 ${clauseIndex + 1}</div>
           <div class="clause-tab-buttons">
             ${roleSteps.map((step, roleIndex) => `
               <button class="tab-btn ${clauseIndex === activeClauseIndex && roleIndex === activeRoleIndex ? 'active' : ''}" data-tab-clause="${clauseIndex}" data-tab-role="${roleIndex}">
@@ -1281,7 +1277,7 @@
       stepPanel.innerHTML = `
         <div>
           <div class="section-heading">
-            <h2 style="margin: 0;">Clause ${activeClauseIndex + 1}｜${step.title}</h2>
+            <h2 style="margin: 0;">子句 ${activeClauseIndex + 1}｜${step.title}</h2>
             <button class="help-icon-btn" data-help-step="${step.id}" aria-label="${step.title}說明">?</button>
           </div>
         </div>
