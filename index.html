@@ -838,6 +838,10 @@
         <div id="shareRoleLegend" class="legend-row" style="margin-top: 10px;"></div>
       </div>
       <div class="review-item">
+        <strong>原始中文句子</strong>
+        <p id="shareOriginalSentence" style="margin: 10px 0 0;"></p>
+      </div>
+      <div class="review-item">
         <strong>最終翻譯</strong>
         <p id="shareFinalTranslation" style="margin: 10px 0 0;"></p>
       </div>
@@ -893,6 +897,7 @@
     const shareLinkModal = document.getElementById('shareLinkModal');
     const shareRoleResult = document.getElementById('shareRoleResult');
     const shareRoleLegend = document.getElementById('shareRoleLegend');
+    const shareOriginalSentence = document.getElementById('shareOriginalSentence');
     const shareFinalTranslation = document.getElementById('shareFinalTranslation');
     const shareLinkInput = document.getElementById('shareLinkInput');
     const copyShareLinkBtn = document.getElementById('copyShareLinkBtn');
@@ -1258,13 +1263,15 @@
 
     function renderRoleLegend(target) {
       target.innerHTML = `
-        <span class="legend-token role-subject">主詞</span>
-        <span class="legend-token role-verb">動詞</span>
-        <span class="legend-token role-object">受詞</span>
-        <span class="legend-token role-mod-subject">主詞修飾詞</span>
-        <span class="legend-token role-mod-verb">動詞修飾詞</span>
-        <span class="legend-token role-mod-object">受詞修飾詞</span>
-        <span class="legend-token role-modifier">子句修飾詞</span>
+        <span class="legend-token role-mod-subject">SM（主詞修飾詞）</span>
+        <span class="legend-token role-subject">S（主詞）</span>
+        <span class="legend-token role-verb">V（動詞）</span>
+        <span class="legend-token role-mod-verb">VM（動詞修飾詞）</span>
+        <span class="legend-token role-mod-object">OM（受詞修飾詞）</span>
+        <span class="legend-token role-object">O（受詞）</span>
+        <span class="legend-token role-modifier">Place M（地方修飾詞）</span>
+        <span class="legend-token role-modifier">Time M（時間修飾詞）</span>
+        <span class="legend-token role-modifier">Clause M（子句修飾詞）</span>
       `;
     }
 
@@ -1346,6 +1353,7 @@
     function showShareLinkModal() {
       renderShareRoleSummary();
       renderRoleLegend(shareRoleLegend);
+      shareOriginalSentence.textContent = sentenceInput.value.trim() || '（尚未輸入）';
       shareFinalTranslation.textContent = translationInput.value.trim() || '（尚未輸入）';
       shareLinkInput.value = buildShareLink();
       shareLinkModal.classList.remove('hidden');
