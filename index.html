@@ -570,6 +570,74 @@
       font-weight: 700;
     }
 
+    .result-token.role-subject,
+    .legend-token.role-subject {
+      background: var(--subject);
+      border-color: #60a5fa;
+    }
+
+    .result-token.role-verb,
+    .legend-token.role-verb {
+      background: var(--verb);
+      border-color: #f87171;
+    }
+
+    .result-token.role-object,
+    .legend-token.role-object {
+      background: var(--object);
+      border-color: #4ade80;
+    }
+
+    .result-token.role-mod-subject,
+    .legend-token.role-mod-subject {
+      background: var(--modifier);
+      border: 3px solid #60a5fa;
+    }
+
+    .result-token.role-mod-verb,
+    .legend-token.role-mod-verb {
+      background: var(--modifier);
+      border: 3px solid #f87171;
+    }
+
+    .result-token.role-mod-object,
+    .legend-token.role-mod-object {
+      background: var(--modifier);
+      border: 3px solid #4ade80;
+    }
+
+    .result-token.role-modifier,
+    .legend-token.role-modifier {
+      background: var(--modifier);
+      border-color: #facc15;
+    }
+
+    .result-token.role-unassigned {
+      background: #fff;
+    }
+
+    .result-connector {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #f8fafc;
+      display: grid;
+      gap: 8px;
+    }
+
+    .result-connector-title {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .legend-token {
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-weight: 700;
+    }
+
     .legend-row {
       display: flex;
       flex-wrap: wrap;
@@ -766,6 +834,10 @@
         <div id="shareRoleResult" style="margin-top: 10px;"></div>
       </div>
       <div class="review-item">
+        <strong>色彩圖例</strong>
+        <div id="shareRoleLegend" class="legend-row" style="margin-top: 10px;"></div>
+      </div>
+      <div class="review-item">
         <strong>最終翻譯</strong>
         <p id="shareFinalTranslation" style="margin: 10px 0 0;"></p>
       </div>
@@ -820,6 +892,7 @@
     const clauseTranslationActionBtn = document.getElementById('clauseTranslationActionBtn');
     const shareLinkModal = document.getElementById('shareLinkModal');
     const shareRoleResult = document.getElementById('shareRoleResult');
+    const shareRoleLegend = document.getElementById('shareRoleLegend');
     const shareFinalTranslation = document.getElementById('shareFinalTranslation');
     const shareLinkInput = document.getElementById('shareLinkInput');
     const copyShareLinkBtn = document.getElementById('copyShareLinkBtn');
@@ -1160,31 +1233,38 @@
       subjectModal.classList.add('hidden');
     }
 
-    function buildClauseTokenRoleMap(clauseIndex) {
-      const map = {};
-      const clauseTokens = getClauseAnalysisTokens(clauseIndex);
-      clauseTokens.forEach(token => {
-        const roleId = getRoleIdByToken(clauseIndex, token.id);
-        if (roleId) map[token.id] = roleId;
-      });
-      return map;
+    function getResultRoleClass(roleId) {
+      if (!roleId) return 'role-unassigned';
+      if (roleId === 'subjectCore') return 'role-subject';
+      if (roleId === 'verbCore') return 'role-verb';
+      if (roleId === 'objectCore') return 'role-object';
+      if (roleId === 'modSub') return 'role-mod-subject';
+      if (roleId === 'modVerb') return 'role-mod-verb';
+      if (roleId === 'modObj') return 'role-mod-object';
+      return 'role-modifier';
+    }
+
+    function renderTokenByRole(tokenText, roleId) {
+      return `<span class="result-token ${getResultRoleClass(roleId)}">${tokenText}</span>`;
     }
 
     function renderClauseRoleResult(clauseIndex, target) {
       const clauseTokens = getClauseAnalysisTokens(clauseIndex);
       target.innerHTML = clauseTokens.map(token => {
         const roleId = getRoleIdByToken(clauseIndex, token.id);
-        const chipClass = roleId ? roleMetaMap[roleId]?.chipClass : '';
-        return `<span class="result-token ${chipClass || ''}">${token.text}</span>`;
+        return renderTokenByRole(token.text, roleId);
       }).join('');
     }
 
     function renderRoleLegend(target) {
       target.innerHTML = `
-        <span class="role-chip chip-subject">主詞</span>
-        <span class="role-chip chip-verb">動詞</span>
-        <span class="role-chip chip-object">受詞</span>
-        <span class="role-chip chip-modifier">修飾詞</span>
+        <span class="legend-token role-subject">主詞</span>
+        <span class="legend-token role-verb">動詞</span>
+        <span class="legend-token role-object">受詞</span>
+        <span class="legend-token role-mod-subject">主詞修飾詞</span>
+        <span class="legend-token role-mod-verb">動詞修飾詞</span>
+        <span class="legend-token role-mod-object">受詞修飾詞</span>
+        <span class="legend-token role-modifier">子句修飾詞</span>
       `;
     }
 
@@ -1235,22 +1315,37 @@
     }
 
     function renderShareRoleSummary() {
-      shareRoleResult.innerHTML = clauseSelections.map((_, clauseIndex) => `
-        <div class="review-item">
-          <strong>子句 ${clauseIndex + 1}</strong>
-          <div class="result-token-row" style="margin-top: 8px;">
-            ${getClauseAnalysisTokens(clauseIndex).map(token => {
-              const roleId = getRoleIdByToken(clauseIndex, token.id);
-              const chipClass = roleId ? roleMetaMap[roleId]?.chipClass : '';
-              return `<span class="result-token ${chipClass || ''}">${token.text}</span>`;
-            }).join('')}
+      const blocks = [];
+      clauseSelections.forEach((_, clauseIndex) => {
+        blocks.push(`
+          <div class="review-item">
+            <strong>子句 ${clauseIndex + 1}</strong>
+            <div class="result-token-row" style="margin-top: 8px;">
+              ${getClauseAnalysisTokens(clauseIndex).map(token => {
+                const roleId = getRoleIdByToken(clauseIndex, token.id);
+                return renderTokenByRole(token.text, roleId);
+              }).join('')}
+            </div>
           </div>
-        </div>
-      `).join('');
+        `);
+
+        if (clauseIndex < connectingDevices.length) {
+          blocks.push(`
+            <div class="result-connector">
+              <div class="result-connector-title">子句 ${clauseIndex + 1} 與子句 ${clauseIndex + 2} 的連接裝置</div>
+              <div class="result-token-row">
+                ${tokenizeChinese(getConnectorReviewText(clauseIndex) || '（無）').map(token => `<span class="result-token role-unassigned">${token.text}</span>`).join('')}
+              </div>
+            </div>
+          `);
+        }
+      });
+      shareRoleResult.innerHTML = blocks.join('');
     }
 
     function showShareLinkModal() {
       renderShareRoleSummary();
+      renderRoleLegend(shareRoleLegend);
       shareFinalTranslation.textContent = translationInput.value.trim() || '（尚未輸入）';
       shareLinkInput.value = buildShareLink();
       shareLinkModal.classList.remove('hidden');
