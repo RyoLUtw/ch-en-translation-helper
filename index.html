@@ -223,6 +223,47 @@
       font-size: 18px;
     }
 
+    .title-with-help,
+    .label-with-help {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .help-icon-btn {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 999px;
+      border: 1px solid var(--accent);
+      background: white;
+      color: var(--accent);
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: none;
+    }
+
+    .help-icon-btn:hover {
+      background: #eff6ff;
+    }
+
+    .help-modal-body {
+      display: grid;
+      gap: 14px;
+    }
+
     .role-chip,
     .clause-chip {
       display: inline-block;
@@ -498,10 +539,10 @@
 <body>
   <div class="app">
     <section class="card">
-      <h1>中文句子分析工具 POC</h1>
-      <p class="muted">
-        先在上方輸入要分析的中文句子並切詞，再用「辨認句子結構」分出子句／心理意象。底部浮動編輯器則保留給學生撰寫英文翻譯，不會影響句子分析內容。
-      </p>
+      <div class="section-heading">
+        <h1 style="margin: 0;">中文句子分析工具 POC</h1>
+        <button class="help-icon-btn" data-help-key="appOverview" aria-label="中文句子分析工具說明">?</button>
+      </div>
       <textarea id="sentenceInput">小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。</textarea>
       <div class="page-actions">
         <button id="tokenizeBtn" class="primary">切成字詞並重建分析</button>
@@ -515,10 +556,10 @@
     <section id="structureSection" class="card structure-panel">
       <div class="clause-box-header">
         <div>
-        <h2>1. 辨認句子結構</h2>
-      <div class="step-meta">
-          先判斷這個句子有幾個子句（mental images），再逐一在每個子句容器中圈選屬於該子句的字詞。每兩個相鄰子句之間，也要標記連接兩者的連接裝置。按下「確認」後，會套用和詞性分析相同的邏輯：移除未選取字詞，只保留該區內容。
-        </div>
+          <div class="section-heading">
+            <h2 style="margin: 0;">1. 辨認句子結構</h2>
+            <button class="help-icon-btn" data-help-key="structureStep" aria-label="辨認句子結構說明">?</button>
+          </div>
         </div>
       <div class="inline-actions">
           <button id="toggleStructureBtn" class="small-btn hidden">展開步驟 1</button>
@@ -532,8 +573,10 @@
       <div class="slider-box">
         <div class="slider-header">
           <div>
-            <strong>子句數量</strong>
-            <div class="muted">拖曳滑桿選擇 1–6 個子句。調整數量時會保留現有選取內容；若縮減到較少子句，會在需要時先詢問是否刪除尾端子句。</div>
+            <div class="title-with-help">
+              <strong>子句數量</strong>
+              <button class="help-icon-btn" data-help-key="clauseCount" aria-label="子句數量說明">?</button>
+            </div>
           </div>
           <div class="slider-value" id="clauseCountValue">2</div>
         </div>
@@ -545,8 +588,10 @@
 
     <section class="card tab-card">
       <div>
-        <h2>2. 子句角色分析</h2>
-        <p class="muted">左右滑動切換子句；點選按鈕切換該子句中的角色分析。捲動會自動吸附到下一個子句，並同步更新下方顯示的字詞。</p>
+        <div class="section-heading">
+          <h2 style="margin: 0;">2. 子句角色分析</h2>
+          <button class="help-icon-btn" data-help-key="roleAnalysis" aria-label="子句角色分析說明">?</button>
+        </div>
       </div>
       <div class="tab-scroll-wrap">
         <div id="tabScroll" class="tab-scroll"></div>
@@ -563,8 +608,10 @@
   <section id="floatingEditor" class="floating-editor" data-expanded="true">
     <div class="floating-editor-header">
       <div>
-        <div class="floating-editor-title">英文翻譯浮動編輯器</div>
-        <div class="muted">固定在視窗底部，可向上展開／收合，供學生撰寫英文翻譯草稿。</div>
+        <div class="title-with-help">
+          <div class="floating-editor-title">英文翻譯浮動編輯器</div>
+          <button class="help-icon-btn" data-help-key="floatingEditor" aria-label="英文翻譯浮動編輯器說明">?</button>
+        </div>
       </div>
       <button id="toggleEditorBtn" class="editor-toggle">收合編輯器</button>
     </div>
@@ -588,6 +635,24 @@
       <div class="inline-actions">
         <button id="reviewBackBtn">返回修改</button>
         <button id="reviewConfirmBtn" class="primary">下一步(翻譯子句)</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="helpModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="section-heading" style="justify-content: space-between; align-items: flex-start;">
+        <div>
+          <h3 id="helpModalTitle" style="margin: 0 0 6px 0;">說明</h3>
+          <p id="helpModalDescription" class="muted" style="margin: 0;"></p>
+        </div>
+        <button id="helpModalCloseBtn" class="help-icon-btn" aria-label="關閉說明">×</button>
+      </div>
+      <div class="help-modal-body">
+        <div class="review-item">
+          <strong>範例</strong>
+          <p id="helpModalExample" style="margin: 10px 0 0 0;"></p>
+        </div>
       </div>
     </div>
   </div>
@@ -637,6 +702,11 @@
     const reviewBackBtn = document.getElementById('reviewBackBtn');
     const reviewConfirmBtn = document.getElementById('reviewConfirmBtn');
     const sentenceStructureInput = document.getElementById('sentenceStructureInput');
+    const helpModal = document.getElementById('helpModal');
+    const helpModalTitle = document.getElementById('helpModalTitle');
+    const helpModalDescription = document.getElementById('helpModalDescription');
+    const helpModalExample = document.getElementById('helpModalExample');
+    const helpModalCloseBtn = document.getElementById('helpModalCloseBtn');
     const subjectModal = document.getElementById('subjectModal');
     const subjectModalSentence = document.getElementById('subjectModalSentence');
     const subjectClauseInput = document.getElementById('subjectClauseInput');
@@ -645,12 +715,41 @@
 
     const defaultSentence = '小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。';
 
+    const helpContent = {
+      appOverview: {
+        title: '中文句子分析工具 POC',
+        description: '先輸入中文句子並切詞，再完成句子結構與子句角色分析；底部編輯器則專門用來撰寫英文翻譯。',
+        example: '例如：先把「小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。」切詞，再分成兩個子句，最後在底部寫出英文譯文。'
+      },
+      structureStep: {
+        title: '辨認句子結構',
+        description: '先決定句子包含幾個子句，再把各子句與相鄰子句間的連接裝置分配到正確區塊中。',
+        example: '例如：「小明踢足球，然後回家洗澡」可分成兩個子句，並把「然後」標記成兩個子句之間的連接裝置。'
+      },
+      clauseCount: {
+        title: '子句數量',
+        description: '用滑桿調整子句數量，系統會盡量保留既有選取；若減少子句，會在需要時提醒你確認。',
+        example: '例如：原本設定 3 個子句後發現其實只有 2 個，可以把滑桿拉回 2，並確認是否刪除最後一個子句內容。'
+      },
+      roleAnalysis: {
+        title: '子句角色分析',
+        description: '切換不同子句與角色分析步驟，逐一標記主詞、動詞、受詞與子句修飾詞。',
+        example: '例如：在 Clause 1 先標記「小明」是主詞，再切到動詞分析把「踢」標成動詞。'
+      },
+      floatingEditor: {
+        title: '英文翻譯浮動編輯器',
+        description: '底部編輯器固定在頁面下方，可展開或收合，方便學生一邊分析句子一邊撰寫英文翻譯。',
+        example: '例如：完成 Clause 1 的分析後，直接在底部輸入 “Xiaoming happily played soccer in the park yesterday.”。'
+      }
+    };
+
     const roleSteps = [
       {
         id: 'subject',
         shortLabel: 'S',
         title: '主詞分析',
         description: '請針對目前選取子句的字詞，找出主詞修飾詞與主詞。',
+        example: '例如：在「可愛的小明踢球」中，可把「可愛的」放入主詞修飾詞，「小明」放入主詞。',
         roles: [
           { id: 'modSub', label: '主詞修飾詞', chipClass: 'chip-modifier' },
           { id: 'subjectCore', label: '主詞', chipClass: 'chip-subject' }
@@ -661,6 +760,7 @@
         shortLabel: 'V',
         title: '動詞分析',
         description: '請針對目前選取子句的字詞，找出動詞修飾詞與動詞。',
+        example: '例如：在「快速地跑」中，可把「快速地」放入動詞修飾詞，「跑」放入動詞。',
         roles: [
           { id: 'modVerb', label: '動詞修飾詞', chipClass: 'chip-modifier' },
           { id: 'verbCore', label: '動詞', chipClass: 'chip-verb' }
@@ -671,6 +771,7 @@
         shortLabel: 'O',
         title: '受詞分析',
         description: '請針對目前選取子句的字詞，找出受詞修飾詞與受詞。',
+        example: '例如：在「踢紅色的足球」中，可把「紅色的」放入受詞修飾詞，「足球」放入受詞。',
         roles: [
           { id: 'modObj', label: '受詞修飾詞', chipClass: 'chip-modifier' },
           { id: 'objectCore', label: '受詞', chipClass: 'chip-object' }
@@ -681,6 +782,7 @@
         shortLabel: 'CM',
         title: '子句修飾詞分析',
         description: '請找出修飾整個子句的內容。',
+        example: '例如：在「昨天在公園裡開心地踢球」中，可把「昨天」標成時間修飾詞、「在公園裡」標成地方修飾詞、「開心地」標成方式修飾詞。',
         roles: [
           { id: 'modManner', label: '方式修飾詞', chipClass: 'chip-modifier' },
           { id: 'modPlace', label: '地方修飾詞', chipClass: 'chip-modifier' },
@@ -1151,6 +1253,19 @@
       `).join('');
     }
 
+    function openHelpModal(helpKey) {
+      const help = helpContent[helpKey] || roleSteps.find(step => step.id === helpKey);
+      if (!help) return;
+      helpModalTitle.textContent = help.title;
+      helpModalDescription.textContent = help.description;
+      helpModalExample.textContent = help.example;
+      helpModal.classList.remove('hidden');
+    }
+
+    function closeHelpModal() {
+      helpModal.classList.add('hidden');
+    }
+
     function renderStepPanel() {
       const step = roleSteps[activeRoleIndex];
       const clauseTokens = getClauseAnalysisTokens(activeClauseIndex);
@@ -1161,8 +1276,10 @@
 
       stepPanel.innerHTML = `
         <div>
-          <h2>Clause ${activeClauseIndex + 1}｜${step.title}</h2>
-          <div class="step-meta">${step.description}</div>
+          <div class="section-heading">
+            <h2 style="margin: 0;">Clause ${activeClauseIndex + 1}｜${step.title}</h2>
+            <button class="help-icon-btn" data-help-step="${step.id}" aria-label="${step.title}說明">?</button>
+          </div>
         </div>
         <div class="hint-box">此區顯示的字詞來源為目前捲動選中的子句：<strong>${clauseTokens.map(token => token.text).join(' ') || '（無字詞）'}</strong></div>
         <div class="role-grid">
@@ -1200,6 +1317,9 @@
 
       stepPanel.querySelectorAll('[data-token-id]').forEach(btn => {
         btn.addEventListener('click', () => handleRoleTokenClick(btn.dataset.roleId, Number(btn.dataset.tokenId)));
+      });
+      stepPanel.querySelectorAll('[data-help-step]').forEach(btn => {
+        btn.addEventListener('click', () => openHelpModal(btn.dataset.helpStep));
       });
       stepPanel.querySelectorAll('[data-confirm-role]').forEach(btn => {
         btn.addEventListener('click', () => confirmRole(btn.dataset.confirmRole));
@@ -1497,6 +1617,16 @@
     sentenceInput.addEventListener('input', updateSentencePreview);
     clearTranslationBtn.addEventListener('click', () => {
       translationInput.value = '';
+    });
+    document.querySelectorAll('[data-help-key]').forEach(btn => {
+      btn.addEventListener('click', () => openHelpModal(btn.dataset.helpKey));
+    });
+    helpModalCloseBtn.addEventListener('click', closeHelpModal);
+    helpModal.addEventListener('click', event => {
+      if (event.target === helpModal) closeHelpModal();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeHelpModal();
     });
     toggleStructureBtn.addEventListener('click', () => {
       structureCollapsed = !structureCollapsed;
