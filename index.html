@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>中文句子分析工具 POC</title>
+  <title>中譯英輔助小工具</title>
   <style>
     :root {
       --bg: #f5f7fb;
@@ -540,13 +540,13 @@
   <div class="app">
     <section class="card">
       <div class="section-heading">
-        <h1 style="margin: 0;">中文句子分析工具 POC</h1>
+        <h1 style="margin: 0;">輸入要翻譯的中文句子</h1>
         <button class="help-icon-btn" data-help-key="appOverview" aria-label="中文句子分析工具說明">?</button>
       </div>
       <textarea id="sentenceInput">小明昨天在公園裡開心地踢足球，回家後又馬上洗澡。</textarea>
       <div class="page-actions">
-        <button id="tokenizeBtn" class="primary">切成字詞並重建分析</button>
-        <button id="resetSentenceBtn">重設句子</button>
+        <button id="tokenizeBtn" class="primary">開始翻譯</button>
+        <button id="resetSentenceBtn">恢復預設句子</button>
       </div>
       <div class="hint-box">
         目前分析使用的句子：<strong id="sentencePreview"></strong>
@@ -1082,7 +1082,7 @@
       const visibleTokens = state.confirmed ? tokens.filter(token => selectedSet.has(token.id)) : tokens;
       const anchorId = quickSelectionState.clause[getQuickAnchorKey('clause', clauseIndex)];
 
-      if (!visibleTokens.length) return '<div class="placeholder">目前沒有保留任何字詞。</div>';
+      if (!visibleTokens.length) return '<div class="placeholder">沒有任何字詞屬於此分類。</div>';
 
       return visibleTokens.map(token => `
         <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''} ${anchorId === token.id ? 'quick-anchor' : ''}" data-clause-token="${token.id}" data-clause-index="${clauseIndex}">${token.text}</button>
@@ -1097,7 +1097,7 @@
       const visibleTokens = state.confirmed ? tokens.filter(token => selectedSet.has(token.id)) : tokens;
       const anchorId = quickSelectionState.connector[getQuickAnchorKey('connector', connectorIndex)];
 
-      if (!visibleTokens.length) return '<div class="placeholder">目前沒有保留任何字詞。</div>';
+      if (!visibleTokens.length) return '<div class="placeholder">沒有任何字詞屬於此分類。</div>';
 
       return visibleTokens.map(token => `
         <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''} ${anchorId === token.id ? 'quick-anchor' : ''}" data-connector-token="${token.id}" data-connector-index="${connectorIndex}">${token.text}</button>
@@ -1111,8 +1111,8 @@
         <div class="clause-box ${state.confirmed ? 'confirmed' : ''}">
           <div class="clause-box-header">
             <div>
-              <div class="clause-title">Clause ${index + 1}</div>
-              <div class="clause-chip">辨認句子結構</div>
+              <div class="clause-title">子句 ${index + 1}</div>
+              
             </div>
             <div class="clause-actions">
               <button class="small-btn ${state.quickSelectionEnabled ? 'active-toggle' : ''}" data-quick-clause="${index}">${state.quickSelectionEnabled ? '快速選取：開' : '快速選取：關'}</button>
@@ -1120,11 +1120,13 @@
               <button class="small-btn primary" data-confirm-clause="${index}">確認子句</button>
             </div>
           </div>
-          <div class="token-field">${renderClauseTokens(index)}</div>
-          <div class="muted" style="margin-top: 8px;">
-            ${state.quickSelectionEnabled ? '快速選取模式已開啟：先點起點，再點終點，可一次選取中間所有字詞。' : ''}
-            ${state.confirmed ? '已確認，只顯示保留字詞。' : '尚未確認，目前顯示整句所有字詞，可點選屬於此子句的內容。'}
+           <div class="muted" style="margin: 8px; margin-left: 1px">
+            ${state.confirmed ? '' : '請選擇子句。'}
+            ${state.quickSelectionEnabled ? '(快速選取模式已開啟：先點起點，再點終點，可一次選取中間所有字詞。)' : ''}
+            
           </div>
+          <div class="token-field">${renderClauseTokens(index)}</div>
+         
         </div>`);
 
         if (index < connectingDevices.length) {
@@ -1133,8 +1135,8 @@
           <div class="connector-box ${connectorState.confirmed ? 'confirmed' : ''}">
             <div class="clause-box-header">
               <div>
-                <div class="clause-title">Clause ${index + 1} ↔ Clause ${index + 2}</div>
-                <div class="clause-chip">連接裝置</div>
+                <div class="clause-title">子句 ${index + 1} ↔ 子句 ${index + 2} 連接裝置</div>
+                
               </div>
               <div class="clause-actions">
                 <button class="small-btn ${connectorState.quickSelectionEnabled ? 'active-toggle' : ''}" data-quick-connector="${index}">${connectorState.quickSelectionEnabled ? '快速選取：開' : '快速選取：關'}</button>
@@ -1142,11 +1144,13 @@
                 <button class="small-btn primary" data-confirm-connector="${index}">確認連接裝置</button>
               </div>
             </div>
-            <div class="token-field">${renderConnectorTokens(index)}</div>
-            <div class="muted" style="margin-top: 8px;">
-              ${connectorState.quickSelectionEnabled ? '快速選取模式已開啟：先點起點，再點終點，可一次選取中間所有字詞。' : ''}
-              ${connectorState.confirmed ? '已確認，只顯示保留字詞。' : '尚未確認，目前顯示整句所有字詞，請圈選連接這兩個子句的連接裝置。'}
+              <div class="muted" style="margin: 8px; margin-left: 1px">
+              ${connectorState.confirmed ? '' : '請圈選連接這兩個子句的連接裝置。'}
+              ${connectorState.quickSelectionEnabled ? '(快速選取模式已開啟：先點起點，再點終點，可一次選取中間所有字詞。)' : ''}
+              
             </div>
+            <div class="token-field">${renderConnectorTokens(index)}</div>
+          
           </div>`);
         }
       });
@@ -1246,7 +1250,7 @@
       const visibleTokens = roleState.confirmed ? clauseTokens.filter(token => selectedSet.has(token.id)) : clauseTokens;
       const anchorId = quickSelectionState.role[getQuickAnchorKey('role', activeClauseIndex, roleId)];
 
-      if (!visibleTokens.length) return '<div class="placeholder">目前沒有保留任何字詞。</div>';
+      if (!visibleTokens.length) return '<div class="placeholder">沒有任何字詞屬於此分類。</div>';
 
       return visibleTokens.map(token => `
         <button class="role-token ${selectedSet.has(token.id) ? 'selected' : ''} ${anchorId === token.id ? 'quick-anchor' : ''}" data-role-id="${roleId}" data-token-id="${token.id}">${token.text}</button>
@@ -1301,8 +1305,9 @@
                 </div>
                 <div class="token-field">${renderRoleTokens(role.id)}</div>
                 <div class="muted" style="margin-top: 8px;">
-                  ${state.quickSelectionEnabled ? '快速選取模式已開啟：先點起點，再點終點，可一次選取中間所有字詞。' : ''}
-                  ${state.confirmed ? '已確認，只顯示保留字詞。' : '尚未確認，目前顯示此子句的所有字詞，且預設不選取。'}
+                  ${state.confirmed ? '' : '請選擇符合子句角色的字詞。'}
+                  ${state.quickSelectionEnabled ? '(快速選取模式已開啟：先點起點，再點終點，可一次選取中間所有字詞。)' : ''}
+                  
                 </div>
               </div>
             `;
@@ -1591,7 +1596,7 @@
       reviewModalShown = false;
       structureCollapsed = false;
       renderAll();
-      structureSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      
     }
 
     function renderAll() {
